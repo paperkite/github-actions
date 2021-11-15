@@ -28,6 +28,12 @@ inputs:
   eb-version-description:
     description: The description of the EB version
     required: true
+  stop-at:
+    description: >-
+      Control how far through the deployment to progress to, useful when setting
+      up new environments (expected values are source, version or deployment)
+    required: false
+    default: deployment
 runs:
   using: composite
   steps:
@@ -66,6 +72,7 @@ runs:
       run: |
         aws s3 cp /tmp/docker.zip S3://${{ inputs.eb-source-s3-bucket }}/${{ inputs.eb-source-s3-key }}
     - name: Create EB application version
+      if: ${{ inputs.stop-at == 'version' || inputs.stop-at == 'deployment'] }}
       shell: bash
       run: |
         aws elasticbeanstalk create-application-version \
@@ -75,6 +82,7 @@ runs:
           --description "${{ inputs.eb-version-description }}" \
           --source-bundle "S3Bucket=${{ inputs.eb-source-s3-bucket }},S3Key=${{ inputs.eb-source-s3-key }}"
     - name: Deploy EB application version
+      if: ${{ inputs.stop-at == 'deployment' }}
       shell: bash
       run: |
         aws elasticbeanstalk update-environment \
