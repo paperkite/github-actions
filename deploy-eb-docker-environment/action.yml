@@ -1,7 +1,7 @@
-name: Create Elastic Beanstalk docker application version
+name: Deploy Elastic Beanstalk docker environment
 description: >-
   Creates a EB single-container docker application source and version from the
-  current directory
+  current directory, then deploys it.
 inputs:
   ecr-image-url:
     description: The ECR url of the docker image
@@ -15,6 +15,9 @@ inputs:
     required: true
   eb-source-s3-key:
     description: The S3 key to place the EB source zip at within the bucket
+    required: true
+  eb-environment-name:
+    description: The name of the EB environment to deploy to
     required: true
   eb-application-name:
     description: The name of the EB application
@@ -71,4 +74,10 @@ runs:
           --version-label "${{ inputs.eb-version-label }}" \
           --description "${{ inputs.eb-version-description }}" \
           --source-bundle "S3Bucket=${{ inputs.eb-source-s3-bucket }},S3Key=${{ inputs.eb-source-s3-key }}"
-
+    - name: Deploy EB application version
+      shell: bash
+      run: |
+        aws elasticbeanstalk update-environment \
+          --environment-name "${{ inputs.eb-environment-name }}" \
+          --region $AWS_DEFAULT_REGION \
+          --version-label "${{ inputs.eb-version-label }}"
