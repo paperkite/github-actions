@@ -1,0 +1,74 @@
+name: Create Elastic Beanstalk docker application version
+description:
+  Creates a EB single-container docker application source and version from the
+  current directory
+inputs:
+  ecr-image-url:
+    description: The ECR url of the docker image
+    required: true
+  ebextensions-folder:
+    description: The path of the .ebextensions folder
+    required: false
+    default: .ebextensions
+  eb-source-s3-bucket:
+    description: The S3 bucket where to place the EB source zip in
+    required: true
+  eb-source-s3-key:
+    description: The S3 key to place the EB source zip at within the bucket
+    required: true
+  eb-application-name:
+    description: The name of the EB application
+    required: true
+  eb-version-label:
+    description: The label to identify the EB application version with
+    required: true
+  eb-version-description:
+    description: The description of the EB version
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Create EB Dockerrun.aws.json
+      shell: bash
+      run: |
+        cat > /tmp/Dockerrun.aws.json << ENDOFFILE
+          {
+            "AWSEBDockerrunVersion": "1",
+            "Image": {
+              "Name": "${{ inputs.ecr-image-url }}",
+              "Update": "true"
+            },
+            "Volumes": [
+              {
+                "HostDirectory": "/var/log/docker-container",
+                "ContainerDirectory": "/app/log"
+              }
+            ],
+            "Ports": [
+              {
+                "ContainerPort": "3000",
+                "HostPort": "80"
+              }
+            ]
+          }
+        ENDOFFILE
+    - name: Create zip with Dockerrun.aws.json & .ebextensions/
+      shell: bash
+      run: |
+        cp -R ${{ inputs.ebextensions-folder-path }} /tmp/.ebextensions
+        cd /tmp
+        zip -r docker.zip Dockerrun.aws.json .ebextensions
+    - name: Upload EB zip to S3
+      shell: bash
+      run: |
+        aws s3 cp /tmp/docker.zip S3://${{ inputs.eb-source-s3-bucket }}/${{ inputs.eb-source-s3-key }}
+    - name: Create EB application version
+      shell: bash
+      run: |
+        aws elasticbeanstalk create-application-version \
+          --application-name "${{ inputs.eb-application-name }}" \
+          --region $AWS_DEFAULT_REGION \
+          --version-label "${{ inputs.eb-version-label }}" \
+          --description "${{ inputs.eb-version-description }}" \
+          --source-bundle "S3Bucket=${{ inputs.eb-source-s3-bucket }},S3Key=${{ inputs.eb-source-s3-key }}"
+
