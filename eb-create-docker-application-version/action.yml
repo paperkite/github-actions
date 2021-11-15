@@ -1,5 +1,5 @@
 name: Create Elastic Beanstalk docker application version
-description:
+description: >-
   Creates a EB single-container docker application source and version from the
   current directory
 inputs:
