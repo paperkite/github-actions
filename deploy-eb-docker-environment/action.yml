@@ -72,7 +72,7 @@ runs:
       run: |
         aws s3 cp /tmp/docker.zip S3://${{ inputs.eb-source-s3-bucket }}/${{ inputs.eb-source-s3-key }}
     - name: Create EB application version
-      if: ${{ inputs.stop-at == 'version' || inputs.stop-at == 'deployment'] }}
+      if: ${{ inputs.stop-at == 'version' || inputs.stop-at == 'deployment' }}
       shell: bash
       run: |
         aws elasticbeanstalk create-application-version \
