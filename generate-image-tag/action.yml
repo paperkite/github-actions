@@ -8,10 +8,15 @@ outputs:
   tag:
     description: The generated image tag with optional prefixes
     value: ${{ steps.generate-image-tag.tag }}
+  sha:
+    description: The generated sha used in the image tag
+    value: ${{ steps.generate-image-tag.sha }}
 runs:
   using: composite
   steps:
     - name: Generate image tag
       id: generate-image-tag
       shell: bash
-      run: echo "::set-output name=tag::${{ inputs.environment-prefix }}-$(git rev-parse --short=8 HEAD)"
+      run: |
+        echo "::set-output name=sha::$(git rev-parse --short=8 HEAD)"
+        echo "::set-output name=tag::${{ inputs.environment-prefix }}-$(git rev-parse --short=8 HEAD)"
