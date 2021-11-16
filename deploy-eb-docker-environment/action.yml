@@ -3,6 +3,12 @@ description: >-
   Creates a EB single-container docker application source and version from the
   current directory, then deploys it.
 inputs:
+  access-key:
+    description: The AWS access key ID to use
+    required: true
+  secret-access-key:
+    description: The AWS access key secret
+    required: true
   ecr-image-url:
     description: The ECR url of the docker image
     required: true
@@ -68,11 +74,17 @@ runs:
         cd /tmp
         zip -r docker.zip Dockerrun.aws.json .ebextensions
     - name: Upload EB zip to S3
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
       shell: bash
       run: |
         aws s3 cp /tmp/docker.zip s3://${{ inputs.eb-source-s3-bucket }}/${{ inputs.eb-source-s3-key }}
     - name: Create EB application version
       if: ${{ inputs.stop-at == 'version' || inputs.stop-at == 'deployment' }}
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
       shell: bash
       run: |
         aws elasticbeanstalk create-application-version \
@@ -83,6 +95,9 @@ runs:
           --source-bundle "S3Bucket=${{ inputs.eb-source-s3-bucket }},S3Key=${{ inputs.eb-source-s3-key }}"
     - name: Deploy EB application version
       if: ${{ inputs.stop-at == 'deployment' }}
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
       shell: bash
       run: |
         aws elasticbeanstalk update-environment \
