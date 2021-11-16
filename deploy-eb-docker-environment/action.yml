@@ -64,7 +64,7 @@ runs:
     - name: Create zip with Dockerrun.aws.json & .ebextensions/
       shell: bash
       run: |
-        cp -R ${{ inputs.ebextensions-folder-path }} /tmp/.ebextensions
+        cp -R ${{ inputs.ebextensions-folder }} /tmp/.ebextensions
         cd /tmp
         zip -r docker.zip Dockerrun.aws.json .ebextensions
     - name: Upload EB zip to S3
