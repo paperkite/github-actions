@@ -3,6 +3,9 @@ description: >-
   Creates a EB single-container docker application source and version from the
   current directory, then deploys it.
 inputs:
+  region:
+    description: The AWS region of the S3 bucket & EB environment
+    required: true
   access-key:
     description: The AWS access key ID to use
     required: true
@@ -75,6 +78,7 @@ runs:
         zip -r docker.zip Dockerrun.aws.json .ebextensions
     - name: Upload EB zip to S3
       env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
         AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
         AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
       shell: bash
@@ -83,6 +87,7 @@ runs:
     - name: Create EB application version
       if: ${{ inputs.stop-at == 'version' || inputs.stop-at == 'deployment' }}
       env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
         AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
         AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
       shell: bash
@@ -96,6 +101,7 @@ runs:
     - name: Deploy EB application version
       if: ${{ inputs.stop-at == 'deployment' }}
       env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
         AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
         AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
       shell: bash
