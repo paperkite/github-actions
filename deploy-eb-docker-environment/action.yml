@@ -87,7 +87,8 @@ runs:
     - name: Create zip of source directory
       shell: bash
       run: |
-        zip -r /tmp/source.zip /tmp/source/*
+        cd /tmp/source
+        zip -r /tmp/source.zip ./*
     - name: Upload source zip to S3
       env:
         AWS_DEFAULT_REGION: ${{ inputs.region }}
