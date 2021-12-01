@@ -3,13 +3,13 @@ description: Evaluates the workflows running context and determines the environm
 outputs:
   name:
     description: The human name of the environment
-    value: ${{ evaluate-workflow.name }}
+    value: ${{ steps.evaluate-workflow.outputs.name }}
   prefix:
     description: The environment prefix used for EB environments, image tagging, etc
-    value: ${{ evaluate-workflow.prefix }}
+    value: ${{ steps.evaluate-workflow.outputs.prefix }}
   rails-env:
     description: The RAILS_ENV to use for the environment
-    value: ${{ evaluate-workflow.rails-env }}
+    value: ${{ steps.evaluate-workflow.outputs.rails-env }}
 runs:
   using: composite
   steps:
