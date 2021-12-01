@@ -1,0 +1,46 @@
+name: Generate environment info
+description: Evaluates the workflows running context and determines the environment that is being built
+outputs:
+  name:
+    description: The human name of the environment
+    value: ${{ evaluate-workflow.name }}
+  prefix:
+    description: The environment prefix used for EB environments, image tagging, etc
+    value: ${{ evaluate-workflow.prefix }}
+  rails-env:
+    description: The RAILS_ENV to use for the environment
+    value: ${{ evaluate-workflow.rails-env }}
+runs:
+  using: composite
+  steps:
+    - name: Evaluate workflow
+      id: evaluate-workflow
+      shell: bash
+      run: |
+        if [ ${{ github.ref_type }} == 'branch' ]; then
+          if [ ${{ github.ref }} == 'dev' ]; then
+            echo "::set-output name=name::development"
+            echo "::set-output name=prefix::dev"
+            echo "::set-output name=rails-env::dev"
+          elif [ ${{ github.ref }} == 'qa' ]; then
+            echo "::set-output name=name::QA"
+            echo "::set-output name=prefix::qa"
+            echo "::set-output name=rails-env::qa"
+          elif [ ${{ github.ref }} == 'uat' ]; then
+            echo "::set-output name=name::UAT"
+            echo "::set-output name=prefix::uat"
+            echo "::set-output name=rails-env::uat"
+          elif [ ${{ github.ref }} == 'staging' ]; then
+            echo "::set-output name=name::staging"
+            echo "::set-output name=prefix::staging"
+            echo "::set-output name=rails-env::staging"
+          else
+            exit 1
+          fi
+        elif [ ${{ github.ref_type }} == 'tag' ]; then
+          echo "::set-output name=name::production"
+          echo "::set-output name=prefix::prod"
+          echo "::set-output name=rails-env::production"
+        else
+          exit 1
+        fi
