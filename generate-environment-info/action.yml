@@ -17,6 +17,8 @@ runs:
       id: evaluate-workflow
       shell: bash
       run: |
+        echo "GITHUB_REF_TYPE = $GITHUB_REF_TYPE"
+        echo "GITHUB_REF_NAME = $GITHUB_REF_NAME"
         if [ $GITHUB_REF_TYPE == "branch" ]; then
           if [ $GITHUB_REF_NAME == "dev" ]; then
             echo "::set-output name=name::development"
