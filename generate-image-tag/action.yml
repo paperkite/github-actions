@@ -5,12 +5,12 @@ inputs:
     description: Environment of the image being built to be used as a prefix at the start of the tag
     required: true
 outputs:
+  sha:
+    description: The generated sha used in the image tag
+    value: ${{ steps.generate-sha.outputs.sha }}
   tag:
     description: The generated image tag with optional prefixes
     value: ${{ steps.generate-tag.outputs.tag }}
-  sha:
-    description: The generated sha used in the image tag
-    value: ${{ steps.generate-tag.outputs.sha }}
 runs:
   using: composite
   steps:
