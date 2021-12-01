@@ -25,11 +25,13 @@ inputs:
   eb-source-s3-key:
     description: The S3 key to place the EB source zip at within the bucket
     required: true
-  eb-environment-name:
-    description: The name of the EB environment to deploy to
-    required: true
   eb-application-name:
     description: The name of the EB application
+    required: true
+  eb-environment-names:
+    description: >-
+      The name of the EB environment(s) to deploy to, and if multiple, list
+      comma separated without spaces
     required: true
   eb-version-label:
     description: The label to identify the EB application version with
@@ -119,7 +121,11 @@ runs:
         AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
       shell: bash
       run: |
-        aws elasticbeanstalk update-environment \
-          --environment-name "${{ inputs.eb-environment-name }}" \
-          --region $AWS_DEFAULT_REGION \
-          --version-label "${{ inputs.eb-version-label }}"
+        environments=${{ inputs.eb-environment-names }}
+        for environment in ${environments//,/ }
+        do
+          aws elasticbeanstalk update-environment \
+            --environment-name "$environment" \
+            --region $AWS_DEFAULT_REGION \
+            --version-label "${{ inputs.eb-version-label }}"
+        done
