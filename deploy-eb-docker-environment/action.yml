@@ -90,7 +90,7 @@ runs:
       shell: bash
       run: |
         cd /tmp/source
-        zip -r /tmp/source.zip ./*
+        zip -rv /tmp/source.zip .
     - name: Upload source zip to S3
       env:
         AWS_DEFAULT_REGION: ${{ inputs.region }}
