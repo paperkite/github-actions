@@ -15,10 +15,12 @@ inputs:
   ecr-image-url:
     description: The ECR url of the docker image
     required: true
-  ebextensions-folder:
-    description: The path of the .ebextensions folder
+  eb-config-folder:
+    description: >-
+      The path of the folder containing .ebextensions, .platform, cron.yaml and
+      any other EB source configuration files
     required: false
-    default: .ebextensions
+    default: eb_config
   eb-source-s3-bucket:
     description: The S3 bucket where to place the EB source zip in
     required: true
@@ -52,7 +54,7 @@ runs:
       shell: bash
       run: |
         mkdir /tmp/source
-    - name: Create EB Dockerrun.aws.json
+    - name: Create EB Dockerrun.aws.json in source directory
       shell: bash
       run: |
         cat > /tmp/source/Dockerrun.aws.json << ENDOFFILE
@@ -76,16 +78,11 @@ runs:
             ]
           }
         ENDOFFILE
-    - name: Copy .ebextensions into source directory if present
+    - name: Copy EB config folder contents into source directory
       shell: bash
       run: |
-        test -d ${{ inputs.ebextensions-folder }} && \
-        cp -R ${{ inputs.ebextensions-folder }} /tmp/source/.ebextensions
-    - name: Copy cron.yaml into source directory if present
-      shell: bash
-      run: |
-        test -f cron.yaml && \
-        cp cron.yaml /tmp/source/cron.yaml
+        test -d ${{ inputs.eb-config-folder }} && \
+        cp -R ${{ inputs.eb-config-folder }} /tmp/source
     - name: Create zip of source directory
       shell: bash
       run: |
