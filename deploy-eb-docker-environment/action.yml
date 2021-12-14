@@ -82,7 +82,7 @@ runs:
       shell: bash
       run: |
         test -d ${{ inputs.eb-config-folder }} && \
-        cp -R ${{ inputs.eb-config-folder }} /tmp/source
+        cp -R ${{ inputs.eb-config-folder }}/* /tmp/source
     - name: Create zip of source directory
       shell: bash
       run: |
