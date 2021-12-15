@@ -46,6 +46,7 @@ runs:
           elif [ $GITHUB_REF_NAME == "staging" ]; then
             echo "::set-output name=name::staging"
             echo "::set-output name=prefix::staging"
+            echo "::set-output name=version::staging-${{ steps.generate-sha.outputs.sha }}"
             echo "::set-output name=rails-env::staging"
           else
             exit 1
