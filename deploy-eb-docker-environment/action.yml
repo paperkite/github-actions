@@ -50,10 +50,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Create temporary source directory
+    - name: Create source directory from EB config folder
       shell: bash
       run: |
-        mkdir /tmp/source
+        test -d ${{ inputs.eb-config-folder }} && \
+          cp -vR ${{ inputs.eb-config-folder }} /tmp/source
+        test -d /tmp/source || mkdir /tmp/source
     - name: Create EB Dockerrun.aws.json in source directory
       shell: bash
       run: |
@@ -78,11 +80,6 @@ runs:
             ]
           }
         ENDOFFILE
-    - name: Copy EB config folder contents into source directory
-      shell: bash
-      run: |
-        test -d ${{ inputs.eb-config-folder }} && \
-        cp -vR ${{ inputs.eb-config-folder }}/* /tmp/source
     - name: Create zip of source directory
       shell: bash
       run: |
