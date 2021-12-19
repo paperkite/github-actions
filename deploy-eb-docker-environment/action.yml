@@ -1,0 +1,125 @@
+name: Deploy Elastic Beanstalk docker environment
+description: >-
+  Creates a EB single-container docker application source and version from the
+  current directory, then deploys it.
+inputs:
+  region:
+    description: The AWS region of the S3 bucket & EB environment
+    required: true
+  access-key:
+    description: The AWS access key ID to use
+    required: true
+  secret-access-key:
+    description: The AWS access key secret
+    required: true
+  ecr-image-url:
+    description: The ECR url of the docker image
+    required: true
+  eb-config-folder:
+    description: >-
+      The path of the folder containing .ebextensions, .platform, cron.yaml and
+      any other EB source configuration files
+    required: false
+    default: eb_config
+  eb-source-s3-bucket:
+    description: The S3 bucket where to place the EB source zip in
+    required: true
+  eb-source-s3-key:
+    description: The S3 key to place the EB source zip at within the bucket
+    required: true
+  eb-application-name:
+    description: The name of the EB application
+    required: true
+  eb-environment-names:
+    description: >-
+      The name of the EB environment(s) to deploy to, and if multiple, list
+      comma separated without spaces
+    required: true
+  eb-version-label:
+    description: The label to identify the EB application version with
+    required: true
+  eb-version-description:
+    description: The description of the EB version
+    required: true
+  stop-at:
+    description: >-
+      Control how far through the deployment to progress to, useful when setting
+      up new environments (expected values are source, version or deployment)
+    required: false
+    default: deployment
+runs:
+  using: composite
+  steps:
+    - name: Create source directory from EB config folder
+      shell: bash
+      run: |
+        test -d ${{ inputs.eb-config-folder }} && \
+          cp -vR ${{ inputs.eb-config-folder }} /tmp/source
+        test -d /tmp/source || mkdir /tmp/source
+    - name: Create EB Dockerrun.aws.json in source directory
+      shell: bash
+      run: |
+        cat > /tmp/source/Dockerrun.aws.json << ENDOFFILE
+          {
+            "AWSEBDockerrunVersion": "1",
+            "Image": {
+              "Name": "${{ inputs.ecr-image-url }}",
+              "Update": "true"
+            },
+            "Volumes": [
+              {
+                "HostDirectory": "/var/log/docker-container",
+                "ContainerDirectory": "/app/log"
+              }
+            ],
+            "Ports": [
+              {
+                "ContainerPort": "3000",
+                "HostPort": "80"
+              }
+            ]
+          }
+        ENDOFFILE
+    - name: Create zip of source directory
+      shell: bash
+      run: |
+        cd /tmp/source
+        zip -rv /tmp/source.zip .
+    - name: Upload source zip to S3
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
+      shell: bash
+      run: |
+        aws s3 cp /tmp/source.zip s3://${{ inputs.eb-source-s3-bucket }}/${{ inputs.eb-source-s3-key }}
+    - name: Create EB application version
+      if: ${{ inputs.stop-at == 'version' || inputs.stop-at == 'deployment' }}
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
+      shell: bash
+      run: |
+        aws elasticbeanstalk create-application-version \
+          --application-name "${{ inputs.eb-application-name }}" \
+          --region $AWS_DEFAULT_REGION \
+          --version-label "${{ inputs.eb-version-label }}" \
+          --description "${{ inputs.eb-version-description }}" \
+          --source-bundle "S3Bucket=${{ inputs.eb-source-s3-bucket }},S3Key=${{ inputs.eb-source-s3-key }}"
+    - name: Deploy EB application version
+      if: ${{ inputs.stop-at == 'deployment' }}
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
+      shell: bash
+      run: |
+        environments=${{ inputs.eb-environment-names }}
+        for environment in ${environments//,/ }
+        do
+          aws elasticbeanstalk update-environment \
+            --environment-name "$environment" \
+            --region $AWS_DEFAULT_REGION \
+            --version-label "${{ inputs.eb-version-label }}"
+        done

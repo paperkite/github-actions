@@ -1,0 +1,61 @@
+name: Generate environment info
+description: Evaluates the workflows running context and determines the environment that is being built
+outputs:
+  name:
+    description: The human name of the environment
+    value: ${{ steps.evaluate-workflow.outputs.name }}
+  prefix:
+    description: The environment prefix used for EB environments, image tagging, etc
+    value: ${{ steps.evaluate-workflow.outputs.prefix }}
+  version:
+    description: The version name used for EB versions (the tag version or the prefixed SHA)
+    value: ${{ steps.evaluate-workflow.outputs.version }}
+  rails-env:
+    description: The RAILS_ENV to use for the environment
+    value: ${{ steps.evaluate-workflow.outputs.rails-env }}
+  sha:
+    description: The corresponding Git commits SHA
+    value: ${{ steps.generate-sha.outputs.sha }}
+runs:
+  using: composite
+  steps:
+    - uses: paperkite/github-actions/generate-sha@docker-eb-ci
+      id: generate-sha
+    - name: Evaluate workflow
+      id: evaluate-workflow
+      shell: bash
+      run: |
+        echo "GITHUB_REF_TYPE = $GITHUB_REF_TYPE"
+        echo "GITHUB_REF_NAME = $GITHUB_REF_NAME"
+        if [ $GITHUB_REF_TYPE == "branch" ]; then
+          if [ $GITHUB_REF_NAME == "dev" ]; then
+            echo "::set-output name=name::development"
+            echo "::set-output name=prefix::dev"
+            echo "::set-output name=version::dev-${{ steps.generate-sha.outputs.sha }}"
+            echo "::set-output name=rails-env::dev"
+          elif [ $GITHUB_REF_NAME == "qa" ]; then
+            echo "::set-output name=name::QA"
+            echo "::set-output name=prefix::qa"
+            echo "::set-output name=version::qa-${{ steps.generate-sha.outputs.sha }}"
+            echo "::set-output name=rails-env::qa"
+          elif [ $GITHUB_REF_NAME == "uat" ]; then
+            echo "::set-output name=name::UAT"
+            echo "::set-output name=prefix::uat"
+            echo "::set-output name=version::uat-${{ steps.generate-sha.outputs.sha }}"
+            echo "::set-output name=rails-env::uat"
+          elif [ $GITHUB_REF_NAME == "staging" ]; then
+            echo "::set-output name=name::staging"
+            echo "::set-output name=prefix::staging"
+            echo "::set-output name=version::staging-${{ steps.generate-sha.outputs.sha }}"
+            echo "::set-output name=rails-env::staging"
+          else
+            exit 1
+          fi
+        elif [ $GITHUB_REF_TYPE == "tag" ]; then
+          echo "::set-output name=name::production"
+          echo "::set-output name=prefix::prod"
+          echo "::set-output name=version::$GITHUB_REF_NAME"
+          echo "::set-output name=rails-env::production"
+        else
+          exit 1
+        fi
