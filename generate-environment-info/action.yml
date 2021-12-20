@@ -19,7 +19,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - uses: paperkite/github-actions/generate-sha@docker-eb-ci
+    - uses: paperkite/github-actions/generate-sha@main
       id: generate-sha
     - name: Evaluate workflow
       id: evaluate-workflow
