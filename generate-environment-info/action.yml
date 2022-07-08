@@ -1,5 +1,21 @@
 name: Generate environment info
 description: Evaluates the workflows running context and determines the environment that is being built
+inputs:
+  eb-environment-names-dev:
+    required: false
+    description: A comma seperated value of the Dev EB Environments
+  eb-environment-names-qa:
+    required: false
+    description: A comma seperated value of the QA EB Environments
+  eb-environment-names-uat:
+    required: false
+    description: A comma seperated value of the UAT EB Environments
+  eb-environment-names-staging:
+    required: false
+    description: A comma seperated value of the Staging EB Environments
+  eb-environment-names-production:
+    required: false
+    description: A comma seperated value of the Production EB Environments
 outputs:
   name:
     description: The human name of the environment
@@ -16,6 +32,9 @@ outputs:
   sha:
     description: The corresponding Git commits SHA
     value: ${{ steps.generate-sha.outputs.sha }}
+  eb-environment-names:
+    description: A comma-sepearted-value of the EB Environment names
+    value: ${{ steps.evaluate-workflow.outputs.eb-environment-names }}
 runs:
   using: composite
   steps:
@@ -33,21 +52,25 @@ runs:
             echo "::set-output name=prefix::dev"
             echo "::set-output name=version::dev-${{ steps.generate-sha.outputs.sha }}"
             echo "::set-output name=rails-env::dev"
+            echo "::set-output name=eb-environment-names::${{ inputs.eb-environment-names-dev }}"
           elif [ $GITHUB_REF_NAME == "qa" ]; then
             echo "::set-output name=name::QA"
             echo "::set-output name=prefix::qa"
             echo "::set-output name=version::qa-${{ steps.generate-sha.outputs.sha }}"
             echo "::set-output name=rails-env::qa"
+            echo "::set-output name=eb-environment-names::${{ inputs.eb-environment-names-qa }}"
           elif [ $GITHUB_REF_NAME == "uat" ]; then
             echo "::set-output name=name::UAT"
             echo "::set-output name=prefix::uat"
             echo "::set-output name=version::uat-${{ steps.generate-sha.outputs.sha }}"
             echo "::set-output name=rails-env::uat"
+            echo "::set-output name=eb-environment-names::${{ inputs.eb-environment-names-uat }}"
           elif [ $GITHUB_REF_NAME == "staging" ]; then
             echo "::set-output name=name::staging"
             echo "::set-output name=prefix::staging"
             echo "::set-output name=version::staging-${{ steps.generate-sha.outputs.sha }}"
             echo "::set-output name=rails-env::staging"
+            echo "::set-output name=eb-environment-names::${{ inputs.eb-environment-names-staging }}"
           else
             exit 1
           fi
@@ -56,6 +79,7 @@ runs:
           echo "::set-output name=prefix::prod"
           echo "::set-output name=version::$GITHUB_REF_NAME"
           echo "::set-output name=rails-env::production"
+          echo "::set-output name=eb-environment-names::${{ inputs.eb-environment-names-production }}"
         else
           exit 1
         fi
