@@ -29,15 +29,15 @@ outputs:
   version:
     description: The version name used for EB versions (the tag version or the prefixed SHA)
     value: ${{ steps.evaluate-workflow.outputs.version }}
-  eb-environment-names:
-    description: A comma-sepearted-value of the EB Environment names
-    value: ${{ steps.evaluate-workflow.outputs.eb-environment-names }}
   rails-env:
     description: The RAILS_ENV to use for the environment
     value: ${{ steps.evaluate-workflow.outputs.rails-env }}
   sha:
     description: The corresponding Git commits SHA
     value: ${{ steps.generate-sha.outputs.sha }}
+  eb-environment-names:
+    description: A comma-sepearted-value of the EB Environment names
+    value: ${{ steps.evaluate-workflow.outputs.eb-environment-names }}
 runs:
   using: composite
   steps:
@@ -67,7 +67,7 @@ runs:
             echo "::set-output name=prefix::qa"
             echo "::set-output name=version::qa-${{ steps.generate-sha.outputs.sha }}"
             echo "::set-output name=rails-env::qa"
-            echo "::set-output name=eb-environment-names::web-qa-docker-2"
+            echo "::set-output name=eb-environment-names::${{ inputs.eb-environment-names-qa-docker }}"
           elif [ $GITHUB_REF_NAME == "uat" ]; then
             echo "::set-output name=name::UAT"
             echo "::set-output name=prefix::uat"
