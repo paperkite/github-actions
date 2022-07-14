@@ -29,15 +29,15 @@ outputs:
   version:
     description: The version name used for EB versions (the tag version or the prefixed SHA)
     value: ${{ steps.evaluate-workflow.outputs.version }}
+  eb-environment-names:
+    description: A comma-sepearted-value of the EB Environment names
+    value: ${{ steps.evaluate-workflow.outputs.eb-environment-names }}
   rails-env:
     description: The RAILS_ENV to use for the environment
     value: ${{ steps.evaluate-workflow.outputs.rails-env }}
   sha:
     description: The corresponding Git commits SHA
     value: ${{ steps.generate-sha.outputs.sha }}
-  eb-environment-names:
-    description: A comma-sepearted-value of the EB Environment names
-    value: ${{ steps.evaluate-workflow.outputs.eb-environment-names }}
 runs:
   using: composite
   steps:
