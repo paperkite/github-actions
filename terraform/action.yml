@@ -1,0 +1,54 @@
+name: Terraform
+description: Runs the Terraform format utility to check TF is correctly formatted
+
+inputs:
+  apply_ref:
+    description: The ref to use for applying the Terraform configuration
+    required: false
+    default: main
+
+runs:
+  using: composite
+  steps:
+
+    - uses: hashicorp/setup-terraform@v2
+    - name: Run terraform fmt
+      id: fmt
+      shell: bash
+      run: terraform fmt -check
+
+    - name: Run terraform init
+      id: init
+      shell: bash
+      run: terraform init
+
+    - name: Run terraform plan
+      id: plan
+      shell: bash
+      run: terraform plan -no-color -input=false
+      continue-on-error: true
+
+    - name: Run terraform validate
+      id: validate
+      shell: bash
+      run: terraform validate -no-color
+      continue-on-error: true
+
+    - name: Create/update results PR comment
+      uses: actions/github-script@v6
+      if: github.event_name == 'pull_request'
+      with:
+        github-token: ${{ secrets.PAPERKITE_GITHUB_TOKEN }}
+        script: |
+          const comment = require('./comment.js')
+          console.log(comment({ github, context }))
+
+    - name: Check terraform plan status
+      if: steps.plan.outcome == 'failure'
+      shell: bash
+      run: exit 1
+
+    - name: Terraform apply
+      if: github.ref == inputs.apply_ref && github.event_name == 'push'
+      shell: bash
+      run: terraform apply -auto-approve -input=false
