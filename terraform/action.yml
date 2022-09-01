@@ -2,6 +2,10 @@ name: Terraform
 description: Runs the Terraform format utility to check TF is correctly formatted
 
 inputs:
+  working_directory:
+    description: The working directory to run terraform from
+    required: false
+    default: .
   apply_ref:
     description: The ref to use for applying the Terraform configuration
     required: false
@@ -15,23 +19,23 @@ runs:
     - name: Run terraform fmt
       id: fmt
       shell: bash
-      run: terraform fmt -check
+      run: terraform fmt -check -chdir=${{ inputs.working_directory }}
 
     - name: Run terraform init
       id: init
       shell: bash
-      run: terraform init
+      run: terraform init -chdir=${{ inputs.working_directory }}
 
     - name: Run terraform plan
       id: plan
       shell: bash
-      run: terraform plan -no-color -input=false
+      run: terraform plan -no-color -input=false -chdir=${{ inputs.working_directory }}
       continue-on-error: true
 
     - name: Run terraform validate
       id: validate
       shell: bash
-      run: terraform validate -no-color
+      run: terraform validate -no-color -chdir=${{ inputs.working_directory }}
       continue-on-error: true
 
     - name: Create/update results PR comment
@@ -51,4 +55,4 @@ runs:
     - name: Terraform apply
       if: github.ref == inputs.apply_ref && github.event_name == 'push'
       shell: bash
-      run: terraform apply -auto-approve -input=false
+      run: terraform apply -auto-approve -input=false -chdir=${{ inputs.working_directory }}
