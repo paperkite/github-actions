@@ -10,6 +10,9 @@ inputs:
     description: The ref to use for applying the Terraform configuration
     required: false
     default: main
+  github_token:
+    description: Ther GH access token to use for PR comments
+    required: true
 
 runs:
   using: composite
@@ -42,7 +45,7 @@ runs:
       uses: actions/github-script@v6
       if: github.event_name == 'pull_request'
       with:
-        github-token: ${{ secrets.PAPERKITE_GITHUB_TOKEN }}
+        github-token: ${{ inputs.github_token }}
         script: |
           const comment = require('./comment.js')
           console.log(comment({ github, context }))
