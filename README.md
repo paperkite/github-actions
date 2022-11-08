@@ -33,6 +33,48 @@ Automatically moves a tag to the `HEAD` of the current branch if it finds the ta
 - automatically update the `dev` tag to the `HEAD` of `develop` when the branch it's on is merged
 - automatically update the `qa` tag to the `HEAD` of `develop` when a new branch is merged into it
 
+NOTE: You will want to make sure you checkout with `fetch-depth: 0` to get the git history needed to run the operations. Otherwise the refs wont be there for `rev-list` to output and for us to use to detect the tag in the history.
+
+Example usage:
+
+```yaml
+name: Automated retagging
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+
+  # Updates the dev tag to the HEAD of develop if it's merged, which then if
+  # changed, re-triggers the automated deployment.
+  retag-dev-to-head:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: paperkite/github-actions/retag-to-head@main
+        with:
+          tag: dev
+          branch: develop
+
+  # Updates the qa tag to the HEAD of develop if it's merged, which then if
+  # changed, re-triggers the automated deployment.
+  retag-qa-to-head:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: paperkite/github-actions/retag-to-head@main
+        with:
+          tag: qa
+          branch: develop
+
+```
+
 ## Workflows
 
 None so far
