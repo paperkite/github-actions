@@ -21,10 +21,10 @@ runs:
         head_sha=$(git rev-list -n 1 "${{ inputs.branch }}")
 
         if [[ git rev-list ${{ inputs.branch }} | grep -v $head_sha | grep $tag_sha ]]; then
-          echo "Found tag in history of ${{ inputs.branch }}, retag to HEAD."
+          echo "Found tag ($tag_sha) in history of ${{ inputs.branch }}, retag to HEAD ($head_sha)."
           echo "RETAG=true" >> $GITHUB_OUTPUT
         else
-          echo "Tag not found in history of ${{ inputs.branch }}, not retagging to HEAD."
+          echo "Tag ($tag_sha) not found in history of ${{ inputs.branch }}, don't retag to HEAD ($head_sha)."
           echo "RETAG=false" >> $GITHUB_OUTPUT
         fi
 
