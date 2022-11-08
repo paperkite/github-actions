@@ -17,7 +17,10 @@ runs:
       id: check-for-tag
       shell: bash
       run: |
-        if [[ git rev-list ${{ inputs.branch }} | grep $(git rev-list -n 1 "dev") ]]; then
+        tag_sha=$(git rev-list -n 1 "${{ inputs.tag }}")
+        head_sha=$(git rev-list -n 1 "${{ inputs.branch }}")
+
+        if [[ git rev-list ${{ inputs.branch }} | grep -v $head_sha | grep $tag_sha ]]; then
           echo "Found tag in history of ${{ inputs.branch }}, retag to HEAD."
           echo "RETAG=true" >> $GITHUB_OUTPUT
         else
