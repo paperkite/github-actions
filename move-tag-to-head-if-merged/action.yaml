@@ -1,5 +1,5 @@
-name: Retag to HEAD
-description: Checks if a tag is in history and retags it to the HEAD
+name: Move tag to HEAD if merged
+description: Checks if a tag has been merged into a branched history and if so, retags it to the HEAD
 
 inputs:
   tag:
@@ -14,7 +14,7 @@ runs:
   steps:
 
     - name: Check branch history for tag
-      id: check-for-tag
+      id: check-if-merged
       shell: bash
       run: |
         tag_sha=$(git rev-list -n 1 "${{ inputs.tag }}")
@@ -29,7 +29,7 @@ runs:
         fi
 
     - name: Retag to HEAD
-      if: steps.check-for-tag.outputs.RETAG == 'true'
+      if: steps.check-if-merged.outputs.RETAG == 'true'
       shell: bash
       run: |
         git tag --force ${{ inputs.tag }}
