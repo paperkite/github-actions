@@ -1,0 +1,33 @@
+name: Retag to HEAD
+description: Checks if a tag is in history and retags it to the HEAD
+
+inputs:
+  tag:
+    required: true
+    description: The tag we are checking for and retagging HEAD with
+  branch:
+    required: true
+    description: The branch we are checking against
+
+runs:
+  using: composite
+  steps:
+
+    - name: Check branch history for tag
+      id: check-for-tag
+      shell: bash
+      run: |
+        if [ git rev-list ${{ inputs.branch }} | grep $(git rev-list -n 1 "dev") ]; then
+          echo "Found tag in history of ${{ inputs.branch }}, retag to HEAD."
+          echo "RETAG=true" >> $GITHUB_OUTPUT
+        else
+          echo "Tag not found in history of ${{ inputs.branch }}, not retagging to HEAD."
+          echo "RETAG=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Retag to HEAD
+      if: steps.check-for-tag.outputs.RETAG == true
+      shell: bash
+      run: |
+        git tag --force ${{ inputs.tag }}
+        git push --tags --force

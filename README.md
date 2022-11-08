@@ -26,6 +26,13 @@ This handles the whole process of creating the source ZIP and it's files, the ve
 - Creating the EB application version
 - Deploying the EB application version to one or many EB environments
 
+### `retag-to-head`
+
+Automatically moves a tag to the `HEAD` of the current branch if it finds the tag in the history of the current branch. This is used to:
+
+- automatically update the `dev` tag to the `HEAD` of `develop` when the branch it's on is merged
+- automatically update the `qa` tag to the `HEAD` of `develop` when a new branch is merged into it
+
 ## Workflows
 
 None so far
