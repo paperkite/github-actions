@@ -26,7 +26,7 @@ This handles the whole process of creating the source ZIP and it's files, the ve
 - Creating the EB application version
 - Deploying the EB application version to one or many EB environments
 
-### `retag-to-head`
+### `move-tag-to-head-if-merged`
 
 Automatically moves a tag to the `HEAD` of the current branch if it finds the tag in the history of the current branch. This is used to:
 
@@ -49,26 +49,28 @@ jobs:
 
   # Updates the dev tag to the HEAD of develop if it's merged, which then if
   # changed, re-triggers the automated deployment.
-  retag-dev-to-head:
+  move-dev-tag-to-head-if-merged:
+    name: Move dev tag to develop HEAD if merged
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - uses: paperkite/github-actions/retag-to-head@main
+      - uses: paperkite/github-actions/move-tag-to-head-if-merged@main
         with:
           tag: dev
           branch: develop
 
   # Updates the qa tag to the HEAD of develop if it's merged, which then if
   # changed, re-triggers the automated deployment.
-  retag-qa-to-head:
+  move-qa-tag-to-head-if-merged:
+    name: Move qa tag to develop HEAD if merged
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - uses: paperkite/github-actions/retag-to-head@main
+      - uses: paperkite/github-actions/move-tag-to-head-if-merged@main
         with:
           tag: qa
           branch: develop
