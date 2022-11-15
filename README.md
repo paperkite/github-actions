@@ -26,6 +26,57 @@ This handles the whole process of creating the source ZIP and it's files, the ve
 - Creating the EB application version
 - Deploying the EB application version to one or many EB environments
 
+### `move-tag-to-head-if-merged`
+
+Automatically moves a tag to the `HEAD` of the current branch if it finds the tag in the history of the current branch. This is used to:
+
+- automatically update the `dev` tag to the `HEAD` of `develop` when the branch it's on is merged
+- automatically update the `qa` tag to the `HEAD` of `develop` when a new branch is merged into it
+
+NOTE: You will want to make sure you checkout with `fetch-depth: 0` to get the git history needed to run the operations. Otherwise the refs wont be there for `rev-list` to output and for us to use to detect the tag in the history.
+
+Example usage:
+
+```yaml
+name: Automated retagging
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+
+  # Updates the dev tag to the HEAD of develop if it's merged, which then if
+  # changed, re-triggers the automated deployment.
+  move-dev-tag-to-head-if-merged:
+    name: Move dev tag to develop HEAD if merged
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: paperkite/github-actions/move-tag-to-head-if-merged@main
+        with:
+          tag: dev
+          branch: develop
+
+  # Updates the qa tag to the HEAD of develop if it's merged, which then if
+  # changed, re-triggers the automated deployment.
+  move-qa-tag-to-head-if-merged:
+    name: Move qa tag to develop HEAD if merged
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: paperkite/github-actions/move-tag-to-head-if-merged@main
+        with:
+          tag: qa
+          branch: develop
+
+```
+
 ## Workflows
 
 None so far

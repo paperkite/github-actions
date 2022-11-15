@@ -1,5 +1,6 @@
 name: Generate environment info
 description: Evaluates the workflows running context and determines the environment that is being built
+
 inputs:
   eb-environment-names-dev:
     required: false
@@ -16,70 +17,99 @@ inputs:
   eb-environment-names-production:
     required: false
     description: A comma seperated value of the Production EB Environments
+
 outputs:
   name:
     description: The human name of the environment
-    value: ${{ steps.evaluate-workflow.outputs.name }}
+    value: ${{ steps.output-environment-info.outputs.NAME }}
   prefix:
     description: The environment prefix used for EB environments, image tagging, etc
-    value: ${{ steps.evaluate-workflow.outputs.prefix }}
+    value: ${{ steps.output-environment-info.outputs.PREFIX }}
   version:
     description: The version name used for EB versions (the tag version or the prefixed SHA)
-    value: ${{ steps.evaluate-workflow.outputs.version }}
+    value: ${{ steps.output-environment-info.outputs.VERSION }}
   rails-env:
     description: The RAILS_ENV to use for the environment
-    value: ${{ steps.evaluate-workflow.outputs.rails-env }}
+    value: ${{ steps.output-environment-info.outputs.RAILS_ENV }}
   sha:
     description: The corresponding Git commits SHA
-    value: ${{ steps.generate-sha.outputs.sha }}
+    value: ${{ steps.generate-sha.outputs.SHA }}
   eb-environment-names:
     description: A comma-sepearted-value of the EB Environment names
-    value: ${{ steps.evaluate-workflow.outputs.eb-environment-names }}
+    value: ${{ steps.output-environment-info.outputs.EB_ENVIRONMENT_NAMES }}
+
 runs:
   using: composite
   steps:
+
     - uses: paperkite/github-actions/generate-sha@main
       id: generate-sha
-    - name: Evaluate workflow
-      id: evaluate-workflow
+
+    - name: Evaluate environment
+      id: evaluate-environment
       shell: bash
       run: |
         echo "GITHUB_REF_TYPE = $GITHUB_REF_TYPE"
         echo "GITHUB_REF_NAME = $GITHUB_REF_NAME"
-        if [ $GITHUB_REF_TYPE == "branch" ]; then
-          if [ $GITHUB_REF_NAME == "dev" ]; then
-            echo "::set-output name=name::development"
-            echo "::set-output name=prefix::dev"
-            echo "::set-output name=version::dev-${{ steps.generate-sha.outputs.sha }}"
-            echo "::set-output name=rails-env::dev"
-            echo "::set-output name=eb-environment-names::${{ inputs.eb-environment-names-dev }}"
-          elif [ $GITHUB_REF_NAME == "qa" ]; then
-            echo "::set-output name=name::QA"
-            echo "::set-output name=prefix::qa"
-            echo "::set-output name=version::qa-${{ steps.generate-sha.outputs.sha }}"
-            echo "::set-output name=rails-env::qa"
-            echo "::set-output name=eb-environment-names::${{ inputs.eb-environment-names-qa }}"
-          elif [ $GITHUB_REF_NAME == "uat" ]; then
-            echo "::set-output name=name::UAT"
-            echo "::set-output name=prefix::uat"
-            echo "::set-output name=version::uat-${{ steps.generate-sha.outputs.sha }}"
-            echo "::set-output name=rails-env::uat"
-            echo "::set-output name=eb-environment-names::${{ inputs.eb-environment-names-uat }}"
-          elif [ $GITHUB_REF_NAME == "staging" ]; then
-            echo "::set-output name=name::staging"
-            echo "::set-output name=prefix::staging"
-            echo "::set-output name=version::staging-${{ steps.generate-sha.outputs.sha }}"
-            echo "::set-output name=rails-env::staging"
-            echo "::set-output name=eb-environment-names::${{ inputs.eb-environment-names-staging }}"
-          else
-            exit 1
-          fi
-        elif [ $GITHUB_REF_TYPE == "tag" ]; then
-          echo "::set-output name=name::production"
-          echo "::set-output name=prefix::prod"
-          echo "::set-output name=version::$GITHUB_REF_NAME"
-          echo "::set-output name=rails-env::production"
-          echo "::set-output name=eb-environment-names::${{ inputs.eb-environment-names-production }}"
+
+        branch_or_tag_regex="^(branch|tag)$"
+        # matches
+        semmantic_commit_regex="^v[0-9]+\.[0-9]+\.[0-9]+(-[a-z]+(\.[0-9]+)?)?$"
+
+        if [[ $GITHUB_REF_TYPE =~ $branch_or_tag_regex && $GITHUB_REF_NAME == "dev" ]]; then
+          environment=dev
+        elif [[ $GITHUB_REF_TYPE =~ $branch_or_tag_regex && $GITHUB_REF_NAME == "qa" ]]; then
+          environment=qa
+        elif [[ $GITHUB_REF_TYPE =~ $branch_or_tag_regex && $GITHUB_REF_NAME == "uat" ]]; then
+          environment=uat
+        elif [[ $GITHUB_REF_TYPE =~ $branch_or_tag_regex && $GITHUB_REF_NAME == "staging" ]]; then
+          environment=staging
+        elif [[ $GITHUB_REF_TYPE =~ $semmantic_commit_regex ]]; then # TODO: fix
+          environment=production
         else
+          echo "Failed to evaluate environment: unexpected ref type ($GITHUB_REF_TYPE) and name ($GITHUB_REF_NAME)"
+          exit 1
+        fi
+
+        echo "ENVIRONMENT=$environment" >> $GITHUB_OUTPUT
+
+    - name: Output environment info
+      id: output-environment-info
+      shell: bash
+      run: |
+        environment=${{ steps.evaluate-environment.outputs.ENVIRONMENT }}
+
+        if [[ $environment == "dev" ]]; then
+          echo "NAME=development" >> $GITHUB_OUTPUT
+          echo "PREFIX=dev" >> $GITHUB_OUTPUT
+          echo "VERSION=dev-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
+          echo "RAILS_ENV=dev" >> $GITHUB_OUTPUT
+          echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-dev }}" >> $GITHUB_OUTPUT
+        elif [[ $environment == "qa" ]]; then
+          echo "NAME=QA" >> $GITHUB_OUTPUT
+          echo "PREFIX=qa" >> $GITHUB_OUTPUT
+          echo "VERSION=qa-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
+          echo "RAILS_ENV=qa" >> $GITHUB_OUTPUT
+          echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-qa }}" >> $GITHUB_OUTPUT
+        elif [[ $environment == "uat" ]]; then
+          echo "NAME=UAT" >> $GITHUB_OUTPUT
+          echo "PREFIX=uat" >> $GITHUB_OUTPUT
+          echo "VERSION=uat-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
+          echo "RAILS_ENV=uat" >> $GITHUB_OUTPUT
+          echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-uat }}" >> $GITHUB_OUTPUT
+        elif [[ $environment == "staging" ]]; then
+          echo "NAME=staging" >> $GITHUB_OUTPUT
+          echo "PREFIX=staging" >> $GITHUB_OUTPUT
+          echo "VERSION=staging-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
+          echo "RAILS_ENV=staging" >> $GITHUB_OUTPUT
+          echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-staging }}" >> $GITHUB_OUTPUT
+        elif [[ $environment == "production" ]]; then
+          echo "NAME=production" >> $GITHUB_OUTPUT
+          echo "PREFIX=prod" >> $GITHUB_OUTPUT
+          echo "VERSION=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
+          echo "RAILS_ENV=production" >> $GITHUB_OUTPUT
+          echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-production }}" >> $GITHUB_OUTPUT
+        else
+          echo "Failed to set ouputs: unexpected environment ($environment)"
           exit 1
         fi

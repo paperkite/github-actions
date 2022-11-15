@@ -1,13 +1,16 @@
 name: Generate SHA
 description: Creates a consitent SHA from the commits for our docker images
+
 outputs:
   sha:
     description: The generated SHA to be used for image tagging etc
-    value: ${{ steps.generate-sha.outputs.sha }}
+    value: ${{ steps.generate-sha.outputs.SHA }}
+
 runs:
   using: composite
   steps:
     - name: Generate SHA
       id: generate-sha
       shell: bash
-      run: echo "::set-output name=sha::$(git rev-parse --short=8 HEAD)"
+      run: |
+        echo "SHA=$(git rev-parse --short=8 HEAD)" >> $GITHUB_OUTPUT

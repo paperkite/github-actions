@@ -1,0 +1,36 @@
+name: Move tag to HEAD if merged
+description: Checks if a tag has been merged into a branched history and if so, retags it to the HEAD
+
+inputs:
+  tag:
+    required: true
+    description: The tag we are checking for and retagging HEAD with
+  branch:
+    required: true
+    description: The branch we are checking against
+
+runs:
+  using: composite
+  steps:
+
+    - name: Check branch history for tag
+      id: check-if-merged
+      shell: bash
+      run: |
+        tag_sha=$(git rev-list -n 1 "${{ inputs.tag }}")
+        head_sha=$(git rev-list -n 1 "${{ inputs.branch }}")
+
+        if git rev-list ${{ inputs.branch }} | grep -v $head_sha | grep $tag_sha; then
+          echo "Found tag ($tag_sha) in history of ${{ inputs.branch }}, retag to HEAD ($head_sha)."
+          echo "RETAG=true" >> $GITHUB_OUTPUT
+        else
+          echo "Tag ($tag_sha) not found in history of ${{ inputs.branch }}, don't retag to HEAD ($head_sha)."
+          echo "RETAG=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Retag to HEAD
+      if: steps.check-if-merged.outputs.RETAG == 'true'
+      shell: bash
+      run: |
+        git tag --force ${{ inputs.tag }}
+        git push --tags --force
