@@ -42,7 +42,7 @@ runs:
   using: composite
   steps:
 
-    - uses: paperkite/github-actions/generate-sha@feat/trunk-based-deployment-flow
+    - uses: paperkite/github-actions/generate-sha@main
       id: generate-sha
 
     - name: Evaluate environment
