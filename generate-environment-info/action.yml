@@ -54,7 +54,7 @@ runs:
 
         branch_or_tag_regex="^(branch|tag)$"
         # matches
-        semmantic_commit_regex="^v[0-9]+\.[0-9]+\.[0-9]+(-[a-z]+(\.[0-9]+)?)?$"
+        semmantic_version_regex="^v[0-9]+\.[0-9]+\.[0-9]+(-[a-z]+(\.[0-9]+)?)?$"
 
         if [[ $GITHUB_REF_TYPE =~ $branch_or_tag_regex && $GITHUB_REF_NAME == "dev" ]]; then
           environment=dev
@@ -64,7 +64,7 @@ runs:
           environment=uat
         elif [[ $GITHUB_REF_TYPE =~ $branch_or_tag_regex && $GITHUB_REF_NAME == "staging" ]]; then
           environment=staging
-        elif [[ $GITHUB_REF_TYPE =~ $semmantic_commit_regex ]]; then # TODO: fix
+        elif [[ $GITHUB_REF_TYPE == "tag" && $GITHUB_REF_NAME =~ $semmantic_version_regex ]]; then
           environment=production
         else
           echo "Failed to evaluate environment: unexpected ref type ($GITHUB_REF_TYPE) and name ($GITHUB_REF_NAME)"
