@@ -6,6 +6,10 @@ inputs:
     description: The working directory to run terraform from
     required: false
     default: .
+  apply:
+    description: Whether or not you want the action to aplpy the Terraform configuration
+    required: false
+    default: 'false'
   apply_ref:
     description: The ref to use for applying the Terraform configuration
     required: false
@@ -56,6 +60,6 @@ runs:
       run: exit 1
 
     - name: Terraform apply
-      if: github.ref == inputs.apply_ref && github.event_name == 'push'
+      if: inputs.apply == 'true' && github.ref == inputs.apply_ref && github.event_name == 'push'
       shell: bash
       run: terraform apply -auto-approve -input=false -chdir=${{ inputs.working_directory }}
