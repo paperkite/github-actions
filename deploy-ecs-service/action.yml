@@ -4,6 +4,15 @@ description: >-
   with a new image tag, then updates the service to use the new task definition.
 
 inputs:
+  region:
+    description: The AWS region of the S3 bucket & EB environment
+    required: true
+  access-key:
+    description: The AWS access key ID to use
+    required: true
+  secret-access-key:
+    description: The AWS access key secret
+    required: true
   ecs-cluster-name:
     description: The ECS cluster to update the service in
     required: true
@@ -23,6 +32,10 @@ runs:
     - name: Get latest ECS Task Definition revision
       id: get-latest-ecs-td-revision
       shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
       run: |
         # Get the latest revision of the task definition family
         latest_td_revision=$(aws ecs describe-task-definition \
@@ -34,6 +47,10 @@ runs:
     - name: Generate new ECS Task Definition JSON
       id: generate-new-ecs-td-json
       shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
       run: |
         # Get the latest task definition JSON
         latest_td_json=$(aws ecs describe-task-definition \
@@ -53,6 +70,10 @@ runs:
     - name: Create new ECS Task Definition revision
       id: create-new-ecs-td-revision
       shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
       run: |
         # Create a new revision of the task definition family
         new_td_revision=$(aws ecs register-task-definition \
@@ -64,6 +85,10 @@ runs:
     - name: Update ECS Service with new Task Definition revision
       id: update-ecs-service
       shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
       run: |
         # Update the ECS service to use the new task definition revision
         aws ecs update-service \
