@@ -1,0 +1,97 @@
+name: Deploy ECS Service
+description: >-
+  Creates a new ECS Task Definition from the latest revision of a given family
+  with a new image tag, then updates the service to use the new task definition.
+
+inputs:
+  region:
+    description: The AWS region of the S3 bucket & EB environment
+    required: true
+  access-key:
+    description: The AWS access key ID to use
+    required: true
+  secret-access-key:
+    description: The AWS access key secret
+    required: true
+  ecs-cluster-name:
+    description: The ECS cluster to update the service in
+    required: true
+  ecs-service-name:
+    description: The ECS Service to update with the new Task definition
+    required: true
+  ecs-td-family:
+    description: The ECS Task Definition family to create a new revision of
+    required: true
+  ecr-image-url:
+   description: The ECR url of the docker image
+   required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Get latest ECS Task Definition revision
+      id: get-latest-ecs-td-revision
+      shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
+      run: |
+        # Get the latest revision of the task definition family
+        latest_td_revision=$(aws ecs describe-task-definition \
+          --task-definition ${{ inputs.ecs-td-family }} \
+          --query 'taskDefinition.revision' \
+          --output text)
+        echo "Latest ECS Task Definition revision: $latest_td_revision"
+        echo "::set-output name=latest_td_revision::$latest_td_revision"
+    - name: Generate new ECS Task Definition JSON
+      id: generate-new-ecs-td-json
+      shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
+      run: |
+        # Get the latest task definition JSON
+        latest_td_json=$(aws ecs describe-task-definition \
+          --task-definition ${{ inputs.ecs-td-family }}:${{ steps.get-latest-ecs-td-revision.outputs.latest_td_revision }} \
+          --query 'taskDefinition' \
+          --output json)
+        # Update the image tag in the task definition JSON
+        new_td_json=$(echo $latest_td_json | jq \
+          --arg image_url ${{ inputs.ecr-image-url }} \
+          '.containerDefinitions[0].image = $image_url')
+        # Filter the task definition JSON down to the CLI input values
+        new_td_cli_json=$(echo $new_td_json | jq '{ family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory }')
+        # Echo & save TF CLI JSON
+        echo "New ECS Task Definition JSON:"
+        echo $new_td_cli_json
+        echo $new_td_cli_json > task-definition.json
+    - name: Create new ECS Task Definition revision
+      id: create-new-ecs-td-revision
+      shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
+      run: |
+        # Create a new revision of the task definition family
+        new_td_revision=$(aws ecs register-task-definition \
+          --cli-input-json file://task-definition.json \
+          --query 'taskDefinition.revision' \
+          --output text)
+        echo "New ECS Task Definition revision: $new_td_revision"
+        echo "::set-output name=new_td_revision::$new_td_revision"
+    - name: Update ECS Service with new Task Definition revision
+      id: update-ecs-service
+      shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
+      run: |
+        # Update the ECS service to use the new task definition revision
+        aws ecs update-service \
+          --cluster ${{ inputs.ecs-cluster-name }} \
+          --service ${{ inputs.ecs-service-name }} \
+          --task-definition ${{ inputs.ecs-td-family }}:${{ steps.create-new-ecs-td-revision.outputs.new_td_revision }}
