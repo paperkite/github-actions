@@ -2,6 +2,9 @@ name: Generate environment info
 description: Evaluates the workflows running context and determines the environment that is being built
 
 inputs:
+  eb-environment-names-internal:
+    required: false
+    description: A comma seperated value of the internal EB Environments
   eb-environment-names-dev:
     required: false
     description: A comma seperated value of the Dev EB Environments
@@ -54,10 +57,15 @@ runs:
 
         branch_or_tag_regex="^(branch|tag)$"
         # matches
+        staging_semmantic_version_regex="^v[0-9]+\.[0-9]+\.[0-9]+-staging\.[0-9]+$"
         semmantic_version_regex="^v[0-9]+\.[0-9]+\.[0-9]+(-[a-z]+(\.[0-9]+)?)?$"
 
         if [[ $GITHUB_REF_TYPE =~ $branch_or_tag_regex && $GITHUB_REF_NAME == "dev" ]]; then
           environment=dev
+        elif [[ $GITHUB_REF_TYPE == "tag" && $GITHUB_REF_NAME == "internal-rc" ]]; then
+          environment=internal
+        elif [[ $GITHUB_REF_TYPE == "tag" && $GITHUB_REF_NAME =~ $staging_semmantic_version_regex ]]; then
+          environment=new-staging
         elif [[ $GITHUB_REF_TYPE =~ $branch_or_tag_regex && $GITHUB_REF_NAME == "qa" ]]; then
           environment=qa
         elif [[ $GITHUB_REF_TYPE =~ $branch_or_tag_regex && $GITHUB_REF_NAME == "uat" ]]; then
@@ -85,6 +93,12 @@ runs:
           echo "VERSION=dev-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=dev" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-dev }}" >> $GITHUB_OUTPUT
+        elif [[ $environment == "internal" ]]; then
+          echo "NAME=internal" >> $GITHUB_OUTPUT
+          echo "PREFIX=internal" >> $GITHUB_OUTPUT
+          echo "VERSION=internal-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
+          echo "RAILS_ENV=dev" >> $GITHUB_OUTPUT
+          echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-internal }}" >> $GITHUB_OUTPUT
         elif [[ $environment == "qa" ]]; then
           echo "NAME=QA" >> $GITHUB_OUTPUT
           echo "PREFIX=qa" >> $GITHUB_OUTPUT
@@ -102,6 +116,12 @@ runs:
           echo "PREFIX=staging" >> $GITHUB_OUTPUT
           echo "VERSION=staging-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=staging" >> $GITHUB_OUTPUT
+          echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-staging }}" >> $GITHUB_OUTPUT
+        elif [[ $environment == "new-staging" ]]; then
+          echo "NAME=staging" >> $GITHUB_OUTPUT
+          echo "PREFIX=staging" >> $GITHUB_OUTPUT
+          echo "VERSION=staging" >> $GITHUB_OUTPUT
+          echo "RAILS_ENV=qa" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-staging }}" >> $GITHUB_OUTPUT
         elif [[ $environment == "production" ]]; then
           echo "NAME=production" >> $GITHUB_OUTPUT
