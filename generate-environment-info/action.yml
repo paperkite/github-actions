@@ -57,7 +57,7 @@ runs:
 
         branch_or_tag_regex="^(branch|tag)$"
         # matches
-        staging_semmantic_version_regex="^v[0-9]+\.[0-9]+\.[0-9]+-staging\.[0-9]+$"
+        staging_semmantic_version_regex="^v[0-9]+\.[0-9]+\.[0-9]+-staging-rc\.[0-9]+$"
         semmantic_version_regex="^v[0-9]+\.[0-9]+\.[0-9]+(-[a-z]+(\.[0-9]+)?)?$"
 
         if [[ $GITHUB_REF_TYPE =~ $branch_or_tag_regex && $GITHUB_REF_NAME == "dev" ]]; then
