@@ -120,7 +120,7 @@ runs:
         elif [[ $environment == "new-staging" ]]; then
           echo "NAME=staging" >> $GITHUB_OUTPUT
           echo "PREFIX=staging" >> $GITHUB_OUTPUT
-          echo "VERSION=staging" >> $GITHUB_OUTPUT
+          echo "VERSION=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=qa" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-staging }}" >> $GITHUB_OUTPUT
         elif [[ $environment == "production" ]]; then
