@@ -1,0 +1,40 @@
+name: Validate OAS schemas
+description: >-
+  Validates if the OAS schema file has been bundled (there are no changes) and
+  that the bundled schema has no errors
+
+inputs:
+  schema:
+    required: true
+    description: The schema file to validate
+  source:
+    required: true
+    description: The source folder to validate against the schema
+
+runs:
+  using: composite
+  steps:
+
+    - name: Install swagger-cli
+      shell: bash
+      run: |
+        sudo apt-get yarn
+        yarn global add swagger-cli
+
+    - name: Check if schema has been bundled
+      shell: bash
+      run: |
+        if git diff --name-only --diff-filter=dr ${{ github.event.pull_request.base.sha }}..${{ github.sha }} | grep ${{ inputs.schema }}; then
+          echo "Schema (${{ inputs.schema }}) has been bundled"
+          exit 0
+        else
+          echo "Schema (${{ inputs.schema }}) has not been bundled"
+          echo "Please run the following command and commit the bundled schema:"
+          echo "  swagger-cli bundle ${{ inputs.source }} --outfile ${{ inputs.schema }} --type yaml"
+          exit 1
+        fi
+
+    - name: Validate schema
+      shell: bash
+      run: |
+        swagger-cli validate ${{ inputs.schema }}
