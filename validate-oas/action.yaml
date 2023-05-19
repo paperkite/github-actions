@@ -19,7 +19,7 @@ runs:
       shell: bash
       run: |
         sudo apt-get yarn
-        yarn global add swagger-cli
+        yarn global add @apidevtools/swagger-cli
 
     - name: Check if schema has been bundled
       shell: bash
