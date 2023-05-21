@@ -31,9 +31,6 @@ runs:
         git diff --name-only --diff-filter=dr HEAD | cat
 
         if git diff --name-only --diff-filter=dr HEAD | grep ${{ inputs.schema }}; then
-          echo "Schema (${{ inputs.schema }}) has been bundled"
-          exit 0
-        else
           cat <<- EOF
         Schema (${{ inputs.schema }}) has not been bundled
 
@@ -45,6 +42,9 @@ runs:
         $(git diff HEAD ${{ inputs.schema }} | cat)
         EOF
           exit 1
+        else
+          echo "Schema (${{ inputs.schema }}) has been bundled"
+          exit 0
         fi
 
     - name: Validate schema
