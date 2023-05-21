@@ -24,7 +24,7 @@ runs:
     - name: Check if schema has been bundled
       shell: bash
       run: |
-        if git diff --name-only --diff-filter=dr ${{ github.event.pull_request.base.sha }}..${{ github.sha }} | grep ${{ inputs.schema }}; then
+        if git diff --name-only --diff-filter=dr HEAD | grep ${{ inputs.schema }}; then
           echo "Schema (${{ inputs.schema }}) has been bundled"
           exit 0
         else
