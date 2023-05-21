@@ -24,6 +24,12 @@ runs:
     - name: Check if schema has been bundled
       shell: bash
       run: |
+        echo "Bundling schema"
+        swagger-cli bundle ${{ inputs.source }} --outfile ${{ inputs.schema }} --type yaml
+
+        echo "Checking if there's changes"
+        git diff --name-only --diff-filter=dr HEAD | cat
+
         if git diff --name-only --diff-filter=dr HEAD | grep ${{ inputs.schema }}; then
           echo "Schema (${{ inputs.schema }}) has been bundled"
           exit 0
