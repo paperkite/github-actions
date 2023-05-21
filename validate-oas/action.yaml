@@ -28,9 +28,16 @@ runs:
           echo "Schema (${{ inputs.schema }}) has been bundled"
           exit 0
         else
-          echo "Schema (${{ inputs.schema }}) has not been bundled"
-          echo "Please run the following command and commit the bundled schema:"
-          echo "  swagger-cli bundle ${{ inputs.source }} --outfile ${{ inputs.schema }} --type yaml"
+          cat <<- EOF
+        Schema (${{ inputs.schema }}) has not been bundled
+
+        Please run the following command and commit the bundled schema:
+          swagger-cli bundle ${{ inputs.source }} --outfile ${{ inputs.schema }} --type yaml
+
+        Diff:
+
+        $(git diff HEAD ${{ inputs.schema }} | cat)
+        EOF
           exit 1
         fi
 
