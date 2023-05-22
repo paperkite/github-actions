@@ -77,6 +77,24 @@ jobs:
 
 ```
 
+### `check-oas-bundled`
+
+This action just checks if the provided source schema is bundled in the target directory and that it's been checked in verison control. This is primarily to prevent drift from people not comitting the schemas and also the RSpec OAS validation happens against the bundled schema, which means uncomittted bundled schemas can break tests on later PRs.
+
+```yaml
+jobs:
+
+  check_api_oas_bundled:
+    name: Check API OAS is bundled
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: paperkite/github-actions/check-oas-bundled
+        with:
+          schema: ./docs/api/build/schema.yaml
+          source: ./docs/api/schema.yaml
+```
+
 ## Workflows
 
 None so far
