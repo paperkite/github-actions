@@ -1,15 +1,15 @@
-name: Validate OAS schemas
+name: Check OAS schema is bundled
 description: >-
-  Validates if the OAS schema file has been bundled (there are no changes) and
-  that the bundled schema has no errors
+  Checks if the OAS schema file has been bundled from the source to prevent any
+  drifting in the bundled schema and it's source folder
 
 inputs:
-  schema:
+  bundled_schema:
     required: true
-    description: The schema file to validate
-  source:
+    description: The bundled schema file
+  source_schema:
     required: true
-    description: The source folder to validate against the schema
+    description: The source file that is the root of the schema
 
 runs:
   using: composite
@@ -46,8 +46,3 @@ runs:
           echo "Schema (${{ inputs.schema }}) has been bundled"
           exit 0
         fi
-
-    - name: Validate schema
-      shell: bash
-      run: |
-        swagger-cli validate ${{ inputs.schema }}
