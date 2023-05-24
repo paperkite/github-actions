@@ -1,0 +1,48 @@
+name: Check OAS schema is bundled
+description: >-
+  Checks if the OAS schema file has been bundled from the source to prevent any
+  drifting in the bundled schema and it's source folder
+
+inputs:
+  bundled_schema:
+    required: true
+    description: The bundled schema file
+  source_schema:
+    required: true
+    description: The source file that is the root of the schema
+
+runs:
+  using: composite
+  steps:
+
+    - name: Install swagger-cli
+      shell: bash
+      run: |
+        sudo apt-get install yarn
+        yarn global add @apidevtools/swagger-cli
+
+    - name: Check if schema has been bundled
+      shell: bash
+      run: |
+        echo "Bundling schema"
+        swagger-cli bundle ${{ inputs.source }} --outfile ${{ inputs.schema }} --type yaml
+
+        echo "Checking if there's changes"
+        git diff --name-only --diff-filter=dr HEAD | cat
+
+        if git diff --name-only --diff-filter=dr HEAD | grep ${{ inputs.schema }}; then
+          cat <<- EOF
+        Schema (${{ inputs.schema }}) has not been bundled
+
+        Please run the following command and commit the bundled schema:
+          swagger-cli bundle ${{ inputs.source }} --outfile ${{ inputs.schema }} --type yaml
+
+        Diff:
+
+        $(git diff HEAD ${{ inputs.schema }} | cat)
+        EOF
+          exit 1
+        else
+          echo "Schema (${{ inputs.schema }}) has been bundled"
+          exit 0
+        fi
