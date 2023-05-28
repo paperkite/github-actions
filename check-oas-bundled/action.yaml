@@ -25,24 +25,24 @@ runs:
       shell: bash
       run: |
         echo "Bundling schema"
-        swagger-cli bundle ${{ inputs.source }} --outfile ${{ inputs.schema }} --type yaml
+        swagger-cli bundle ${{ inputs.source_schema }} --outfile ${{ inputs.bundled_schema }} --type yaml
 
         echo "Checking if there's changes"
         git diff --name-only --diff-filter=dr HEAD | cat
 
-        if git diff --name-only --diff-filter=dr HEAD | grep ${{ inputs.schema }}; then
+        if git diff --name-only --diff-filter=dr HEAD | grep ${{ inputs.bundled_schema }}; then
           cat <<- EOF
-        Schema (${{ inputs.schema }}) has not been bundled
+        Schema (${{ inputs.bundled_schema }}) has not been bundled
 
         Please run the following command and commit the bundled schema:
-          swagger-cli bundle ${{ inputs.source }} --outfile ${{ inputs.schema }} --type yaml
+          swagger-cli bundle ${{ inputs.source_schema }} --outfile ${{ inputs.bundled_schema }} --type yaml
 
         Diff:
 
-        $(git diff HEAD ${{ inputs.schema }} | cat)
+        $(git diff HEAD ${{ inputs.bundled_schema }} | cat)
         EOF
           exit 1
         else
-          echo "Schema (${{ inputs.schema }}) has been bundled"
+          echo "Schema (${{ inputs.bundled_schema }}) has been bundled"
           exit 0
         fi
