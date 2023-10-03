@@ -2,9 +2,11 @@ name: Generate environment info
 description: Evaluates the workflows running context and determines the environment that is being built
 
 inputs:
+  # Per-environment EB deployment inputs for controlling specifically what the
+  # output value is per environment.
   eb-environment-names-internal:
     required: false
-    description: A comma seperated value of the internal EB Environments
+    description: A comma seperated value of the Internal EB Environments
   eb-environment-names-dev:
     required: false
     description: A comma seperated value of the Dev EB Environments
@@ -20,6 +22,62 @@ inputs:
   eb-environment-names-production:
     required: false
     description: A comma seperated value of the Production EB Environments
+  # Per-environment ECS deployment inputs for controlling specifically what the
+  # output value is per environment.
+  ecs-cluster-name-internal:
+    required: false
+    description: The name of the Internal ECS cluster
+  ecs-service-name-internal:
+    required: false
+    description: The name of the Internal ECS service
+  ecs-td-family-internal:
+    required: false
+    description: The Task Definition family for Internal
+  ecs-cluster-name-dev:
+    required: false
+    description: The name of the Dev ECS cluster
+  ecs-service-name-dev:
+    required: false
+    description: The name of the Dev ECS service
+  ecs-td-family-dev:
+    required: false
+    description: The Task Definition family for Dev
+  ecs-cluster-name-qa:
+    required: false
+    description: The name of the QA ECS cluster
+  ecs-service-name-qa:
+    required: false
+    description: The name of the QA ECS service
+  ecs-td-family-qa:
+    required: false
+    description: The Task Definition family for QA
+  ecs-cluster-name-uat:
+    required: false
+    description: The name of the UAT ECS cluster
+  ecs-service-name-uat:
+    required: false
+    description: The name of the UAT ECS service
+  ecs-td-family-uat:
+    required: false
+    description: The Task Definition family for UAT
+  ecs-cluster-name-staging:
+    required: false
+    description: The name of the Staging ECS cluster
+  ecs-service-name-staging:
+    required: false
+    description: The name of the Staging ECS service
+  ecs-td-family-staging:
+    required: false
+    description: The Task Definition family for Staging
+  ecs-cluster-name-production:
+    required: false
+    description: The name of the Production ECS cluster
+  ecs-service-name-production:
+    required: false
+    description: The name of the Production ECS service
+  ecs-td-family-production:
+    required: false
+    description: The Task Definition family for Production
 
 outputs:
   name:
@@ -40,6 +98,15 @@ outputs:
   eb-environment-names:
     description: A comma-sepearted-value of the EB Environment names
     value: ${{ steps.output-environment-info.outputs.EB_ENVIRONMENT_NAMES }}
+  ecs-cluster-name:
+    description: The name of the ECS cluster for the environment
+    value: ${{ steps.output-environment-info.outputs.ECS_CLUSTER_NAME }}
+  ecs-service-name:
+    description: The name of the ECS service for the environment
+    value: ${{ steps.output-environment-info.outputs.ECS_SERVICE_NAME }}
+  ecs-td-family:
+    description: The Task Definition family for the environment
+    value: ${{ steps.output-environment-info.outputs.ECS_TD_FAMILY }}
 
 runs:
   using: composite
@@ -93,42 +160,54 @@ runs:
           echo "VERSION=dev-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=dev" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-dev }}" >> $GITHUB_OUTPUT
+          echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-dev }}" >> $GITHUB_OUTPUT
+          echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-dev }}" >> $GITHUB_OUTPUT
+          echo "ECS_TD_FAMILY=${{ inputs.ecs-td-family-dev }}" >> $GITHUB_OUTPUT
         elif [[ $environment == "internal" ]]; then
           echo "NAME=internal" >> $GITHUB_OUTPUT
           echo "PREFIX=internal" >> $GITHUB_OUTPUT
           echo "VERSION=internal-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=dev" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-internal }}" >> $GITHUB_OUTPUT
+          echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-internal }}" >> $GITHUB_OUTPUT
+          echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-internal }}" >> $GITHUB_OUTPUT
+          echo "ECS_TD_FAMILY=${{ inputs.ecs-td-family-internal }}" >> $GITHUB_OUTPUT
         elif [[ $environment == "qa" ]]; then
           echo "NAME=QA" >> $GITHUB_OUTPUT
           echo "PREFIX=qa" >> $GITHUB_OUTPUT
           echo "VERSION=qa-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=qa" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-qa }}" >> $GITHUB_OUTPUT
+          echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-qa }}" >> $GITHUB_OUTPUT
+          echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-qa }}" >> $GITHUB_OUTPUT
+          echo "ECS_TD_FAMILY=${{ inputs.ecs-td-family-qa }}" >> $GITHUB_OUTPUT
         elif [[ $environment == "uat" ]]; then
           echo "NAME=UAT" >> $GITHUB_OUTPUT
           echo "PREFIX=uat" >> $GITHUB_OUTPUT
           echo "VERSION=uat-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=uat" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-uat }}" >> $GITHUB_OUTPUT
+          echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-uat }}" >> $GITHUB_OUTPUT
+          echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-uat }}" >> $GITHUB_OUTPUT
+          echo "ECS_TD_FAMILY=${{ inputs.ecs-td-family-uat }}" >> $GITHUB_OUTPUT
         elif [[ $environment == "staging" ]]; then
           echo "NAME=staging" >> $GITHUB_OUTPUT
           echo "PREFIX=staging" >> $GITHUB_OUTPUT
           echo "VERSION=staging-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=staging" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-staging }}" >> $GITHUB_OUTPUT
-        elif [[ $environment == "new-staging" ]]; then
-          echo "NAME=staging" >> $GITHUB_OUTPUT
-          echo "PREFIX=staging" >> $GITHUB_OUTPUT
-          echo "VERSION=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
-          echo "RAILS_ENV=qa" >> $GITHUB_OUTPUT
-          echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-staging }}" >> $GITHUB_OUTPUT
+          echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-staging }}" >> $GITHUB_OUTPUT
+          echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-staging }}" >> $GITHUB_OUTPUT
+          echo "ECS_TD_FAMILY=${{ inputs.ecs-td-family-staging }}" >> $GITHUB_OUTPUT
         elif [[ $environment == "production" ]]; then
           echo "NAME=production" >> $GITHUB_OUTPUT
           echo "PREFIX=prod" >> $GITHUB_OUTPUT
           echo "VERSION=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=production" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-production }}" >> $GITHUB_OUTPUT
+          echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-production }}" >> $GITHUB_OUTPUT
+          echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-production }}" >> $GITHUB_OUTPUT
+          echo "ECS_TD_FAMILY=${{ inputs.ecs-td-family-production }}" >> $GITHUB_OUTPUT
         else
           echo "Failed to set ouputs: unexpected environment ($environment)"
           exit 1
