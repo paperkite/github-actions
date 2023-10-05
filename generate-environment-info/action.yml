@@ -132,7 +132,7 @@ runs:
         elif [[ $GITHUB_REF_TYPE == "tag" && $GITHUB_REF_NAME == "internal-rc" ]]; then
           environment=internal
         elif [[ $GITHUB_REF_TYPE == "tag" && $GITHUB_REF_NAME =~ $staging_semmantic_version_regex ]]; then
-          environment=new-staging
+          environment=staging
         elif [[ $GITHUB_REF_TYPE =~ $branch_or_tag_regex && $GITHUB_REF_NAME == "qa" ]]; then
           environment=qa
         elif [[ $GITHUB_REF_TYPE =~ $branch_or_tag_regex && $GITHUB_REF_NAME == "uat" ]]; then
