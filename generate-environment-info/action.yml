@@ -132,7 +132,7 @@ runs:
         elif [[ $GITHUB_REF_TYPE == "tag" && $GITHUB_REF_NAME == "internal-rc" ]]; then
           environment=internal
         elif [[ $GITHUB_REF_TYPE == "tag" && $GITHUB_REF_NAME =~ $staging_semmantic_version_regex ]]; then
-          environment=staging
+          environment=new-staging
         elif [[ $GITHUB_REF_TYPE =~ $branch_or_tag_regex && $GITHUB_REF_NAME == "qa" ]]; then
           environment=qa
         elif [[ $GITHUB_REF_TYPE =~ $branch_or_tag_regex && $GITHUB_REF_NAME == "uat" ]]; then
@@ -195,6 +195,15 @@ runs:
           echo "PREFIX=staging" >> $GITHUB_OUTPUT
           echo "VERSION=staging-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=staging" >> $GITHUB_OUTPUT
+          echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-staging }}" >> $GITHUB_OUTPUT
+          echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-staging }}" >> $GITHUB_OUTPUT
+          echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-staging }}" >> $GITHUB_OUTPUT
+          echo "ECS_TD_FAMILY=${{ inputs.ecs-td-family-staging }}" >> $GITHUB_OUTPUT
+        elif [[ $environment == "new-staging" ]]; then
+          echo "NAME=staging" >> $GITHUB_OUTPUT
+          echo "PREFIX=staging" >> $GITHUB_OUTPUT
+          echo "VERSION=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
+          echo "RAILS_ENV=qa" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-staging }}" >> $GITHUB_OUTPUT
           echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-staging }}" >> $GITHUB_OUTPUT
           echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-staging }}" >> $GITHUB_OUTPUT
