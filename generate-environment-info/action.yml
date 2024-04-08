@@ -92,6 +92,9 @@ outputs:
   rails-env:
     description: The RAILS_ENV to use for the environment
     value: ${{ steps.output-environment-info.outputs.RAILS_ENV }}
+  env:
+    description: The ENV to use for the environment
+    value: ${{ steps.output-environment-info.outputs.ENV }}
   sha:
     description: The corresponding Git commits SHA
     value: ${{ steps.generate-sha.outputs.SHA }}
@@ -159,6 +162,7 @@ runs:
           echo "PREFIX=dev" >> $GITHUB_OUTPUT
           echo "VERSION=dev-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=dev" >> $GITHUB_OUTPUT
+          echo "ENV=dev" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-dev }}" >> $GITHUB_OUTPUT
           echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-dev }}" >> $GITHUB_OUTPUT
           echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-dev }}" >> $GITHUB_OUTPUT
@@ -168,6 +172,7 @@ runs:
           echo "PREFIX=internal" >> $GITHUB_OUTPUT
           echo "VERSION=internal-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=dev" >> $GITHUB_OUTPUT
+          echo "ENV=dev" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-internal }}" >> $GITHUB_OUTPUT
           echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-internal }}" >> $GITHUB_OUTPUT
           echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-internal }}" >> $GITHUB_OUTPUT
@@ -177,6 +182,7 @@ runs:
           echo "PREFIX=qa" >> $GITHUB_OUTPUT
           echo "VERSION=qa-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=qa" >> $GITHUB_OUTPUT
+          echo "ENV=qa" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-qa }}" >> $GITHUB_OUTPUT
           echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-qa }}" >> $GITHUB_OUTPUT
           echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-qa }}" >> $GITHUB_OUTPUT
@@ -186,6 +192,7 @@ runs:
           echo "PREFIX=uat" >> $GITHUB_OUTPUT
           echo "VERSION=uat-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=uat" >> $GITHUB_OUTPUT
+          echo "ENV=uat" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-uat }}" >> $GITHUB_OUTPUT
           echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-uat }}" >> $GITHUB_OUTPUT
           echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-uat }}" >> $GITHUB_OUTPUT
@@ -195,6 +202,7 @@ runs:
           echo "PREFIX=staging" >> $GITHUB_OUTPUT
           echo "VERSION=staging-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=staging" >> $GITHUB_OUTPUT
+          echo "ENV=staging" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-staging }}" >> $GITHUB_OUTPUT
           echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-staging }}" >> $GITHUB_OUTPUT
           echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-staging }}" >> $GITHUB_OUTPUT
@@ -204,6 +212,7 @@ runs:
           echo "PREFIX=staging" >> $GITHUB_OUTPUT
           echo "VERSION=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=qa" >> $GITHUB_OUTPUT
+          echo "ENV=qa" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-staging }}" >> $GITHUB_OUTPUT
           echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-staging }}" >> $GITHUB_OUTPUT
           echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-staging }}" >> $GITHUB_OUTPUT
@@ -213,6 +222,7 @@ runs:
           echo "PREFIX=prod" >> $GITHUB_OUTPUT
           echo "VERSION=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
           echo "RAILS_ENV=production" >> $GITHUB_OUTPUT
+          echo "ENV=production" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-production }}" >> $GITHUB_OUTPUT
           echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-production }}" >> $GITHUB_OUTPUT
           echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-production }}" >> $GITHUB_OUTPUT
