@@ -171,8 +171,8 @@ runs:
           echo "NAME=internal" >> $GITHUB_OUTPUT
           echo "PREFIX=internal" >> $GITHUB_OUTPUT
           echo "VERSION=internal-${{ steps.generate-sha.outputs.sha }}" >> $GITHUB_OUTPUT
-          echo "RAILS_ENV=dev" >> $GITHUB_OUTPUT
-          echo "ENV=dev" >> $GITHUB_OUTPUT
+          echo "RAILS_ENV=internal" >> $GITHUB_OUTPUT
+          echo "ENV=internal" >> $GITHUB_OUTPUT
           echo "EB_ENVIRONMENT_NAMES=${{ inputs.eb-environment-names-internal }}" >> $GITHUB_OUTPUT
           echo "ECS_CLUSTER_NAME=${{ inputs.ecs-cluster-name-internal }}" >> $GITHUB_OUTPUT
           echo "ECS_SERVICE_NAME=${{ inputs.ecs-service-name-internal }}" >> $GITHUB_OUTPUT
