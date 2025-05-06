@@ -1,0 +1,72 @@
+name: Configure AWS credentials
+description: Configures AWS credentials for the workflow
+
+inputs:
+  env:
+    required: true
+    description: The environment to configure AWS credentials for
+  internal-aws-ecr-url:
+    required: false
+    description: The internal AWS ECR URL
+  internal-aws-access-key-id:
+    required: false
+    description: The internal AWS access key ID
+  internal-aws-secret-access-key:
+    required: false
+    description: The internal AWS secret access key
+  staging-aws-ecr-url:
+    required: false
+    description: The staging AWS ECR URL
+  staging-aws-access-key-id:
+    required: false
+    description: The staging AWS access key ID
+  staging-aws-secret-access-key:
+    required: false
+    description: The staging AWS secret access key
+  production-aws-ecr-url:
+    required: false
+    description: The production AWS ECR URL
+  production-aws-access-key-id:
+    required: false
+    description: The production AWS access key ID
+  production-aws-secret-access-key:
+    required: false
+    description: The production AWS secret access key
+
+outputs:
+  ecr-url:
+    description: The AWS ECR URL to use
+    value: ${{ steps.configure-aws-credentials.outputs.ecr-url }}
+  access-key:
+    description: The AWS access key ID to use
+    value: ${{ steps.configure-aws-credentials.outputs.access-key }}
+  secret-access-key:
+    description: The AWS access key secret
+    value: ${{ steps.configure-aws-credentials.outputs.secret-access-key }}
+
+runs:
+  using: composite
+  steps:
+
+    - name: Output environment info
+      id: output-environment-info
+      shell: bash
+      run: |
+        environment=${{ inputs.env }}
+
+        if [[ $environment == "internal" ]]; then
+          echo "ECR_URL=${{ inputs.internal-aws-ecr-url }}" >> $GITHUB_OUTPUT
+          echo "ACCESS_KEY=${{ inputs.internal-aws-access-key-id }}" >> $GITHUB_OUTPUT
+          echo "SECRET_ACCESS_KEY=${{ inputs.internal-aws-secret-access-key }}" >> $GITHUB_OUTPUT
+        elif [[ $environment == "staging" ]]; then
+          echo "ECR_URL=${{ inputs.staging-aws-ecr-url }}" >> $GITHUB_OUTPUT
+          echo "ACCESS_KEY=${{ inputs.staging-aws-access-key-id }}" >> $GITHUB_OUTPUT
+          echo "SECRET_ACCESS_KEY=${{ inputs.staging-aws-secret-access-key }}" >> $GITHUB_OUTPUT
+        elif [[ $environment == "production" ]]; then
+          echo "ECR_URL=${{ inputs.production-aws-ecr-url }}" >> $GITHUB_OUTPUT
+          echo "ACCESS_KEY=${{ inputs.production-aws-access-key-id }}" >> $GITHUB_OUTPUT
+          echo "SECRET_ACCESS_KEY=${{ inputs.production-aws-secret-access-key }}" >> $GITHUB_OUTPUT
+        else
+          echo "Failed to set ouputs: unexpected environment ($environment)"
+          exit 1
+        fi
