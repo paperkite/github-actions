@@ -36,18 +36,17 @@ inputs:
 outputs:
   ecr-url:
     description: The AWS ECR URL to use
-    value: ${{ steps.configure-aws-credentials.outputs.ecr-url }}
+    value: ${{ steps.output-environment-info.outputs.ECR_URL }}
   access-key:
     description: The AWS access key ID to use
-    value: ${{ steps.configure-aws-credentials.outputs.access-key }}
+    value: ${{ steps.output-environment-info.outputs.ACCESS_KEY }}
   secret-access-key:
     description: The AWS access key secret
-    value: ${{ steps.configure-aws-credentials.outputs.secret-access-key }}
+    value: ${{ steps.output-environment-info.outputs.SECRET_ACCESS_KEY }}
 
 runs:
   using: composite
   steps:
-
     - name: Output environment info
       id: output-environment-info
       shell: bash
