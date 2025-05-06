@@ -69,3 +69,14 @@ runs:
           echo "Failed to set ouputs: unexpected environment ($environment)"
           exit 1
         fi
+    - name: Debug environment info
+      shell: bash
+      run: |
+        echo "inputs ECR URL: ${{ inputs.staging-aws-ecr-url }}"
+        echo "inputs AWS Access Key ID: ${{ inputs.staging-aws-access-key-id }}"
+        echo "inputs AWS Secret Access Key: ${{ inputs.staging-aws-secret-access-key }}"
+        echo "env: ${{ inputs.env }}"
+        echo "ECR_URL: ${{ steps.output-environment-info.outputs.ECR_URL }}"
+        echo "ACCESS_KEY: ${{ steps.output-environment-info.outputs.ACCESS_KEY }}"
+        echo "SECRET_ACCESS_KEY: ${{ steps.output-environment-info.outputs.SECRET_ACCESS_KEY }}"
+      
