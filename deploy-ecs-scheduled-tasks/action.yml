@@ -65,8 +65,7 @@ runs:
           echo "::set-output name=rule_count::0"
         else
           echo "Found rules: $rules"
-          # Convert to comma-separated for easier processing
-          rules_csv=$(echo "$rules" | tr ' ' ',')
+          rules_csv=$(echo "$rules" | perl -pe 's/\s+/,/g')
           echo "::set-output name=rules::$rules_csv"
           rule_count=$(echo "$rules" | wc -w)
           echo "::set-output name=rule_count::$rule_count"
