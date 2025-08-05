@@ -89,7 +89,9 @@ runs:
           exit 0
         fi
 
-        task_def_arn="${{ inputs.ecs-td-family }}:${{ inputs.ecs-td-revision }}"
+        # Get AWS account ID for constructing full task definition ARN
+        account_id=$(aws sts get-caller-identity --query Account --output text)
+        task_def_arn="arn:aws:ecs:${{ inputs.region }}:${account_id}:task-definition/${{ inputs.ecs-td-family }}:${{ inputs.ecs-td-revision }}"
         echo "Task Definition ARN: $task_def_arn"
 
         updated_rules=""
