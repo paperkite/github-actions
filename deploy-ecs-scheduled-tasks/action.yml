@@ -89,6 +89,21 @@ runs:
           exit 0
         fi
 
+        # Debug inputs
+        echo "ECS TD Family: '${{ inputs.ecs-td-family }}'"
+        echo "ECS TD Revision: '${{ inputs.ecs-td-revision }}'"
+        
+        # Validate required inputs
+        if [ -z "${{ inputs.ecs-td-family }}" ]; then
+          echo "Error: ecs-td-family input is required"
+          exit 1
+        fi
+        
+        if [ -z "${{ inputs.ecs-td-revision }}" ]; then
+          echo "Error: ecs-td-revision input is required"
+          exit 1
+        fi
+        
         # Get AWS account ID for constructing full task definition ARN
         account_id=$(aws sts get-caller-identity --query Account --output text)
         task_def_arn="arn:aws:ecs:${{ inputs.region }}:${account_id}:task-definition/${{ inputs.ecs-td-family }}:${{ inputs.ecs-td-revision }}"
