@@ -61,14 +61,14 @@ runs:
 
         if [ -z "$rules" ]; then
           echo "No scheduled task rules found for prefix: $rule_prefix"
-          echo "::set-output name=rules::"
-          echo "::set-output name=rule_count::0"
+          echo "rules=" >> $GITHUB_OUTPUT
+          echo "rule_count=0" >> $GITHUB_OUTPUT
         else
           echo "Found rules: $rules"
           rules_csv=$(echo "$rules" | perl -pe 's/\s+/,/g')
-          echo "::set-output name=rules::$rules_csv"
+          echo "rules=$rules_csv" >> $GITHUB_OUTPUT
           rule_count=$(echo "$rules" | wc -w)
-          echo "::set-output name=rule_count::$rule_count"
+          echo "rule_count=$rule_count" >> $GITHUB_OUTPUT
         fi
 
     - name: Update CloudWatch Event targets with new task definition
@@ -84,8 +84,8 @@ runs:
 
         if [ "$rule_count" -eq 0 ] || [ -z "$rules" ]; then
           echo "No rules to update"
-          echo "::set-output name=updated_rules::"
-          echo "::set-output name=updated_count::0"
+          echo "updated_rules=" >> $GITHUB_OUTPUT
+          echo "updated_count=0" >> $GITHUB_OUTPUT
           exit 0
         fi
 
@@ -148,6 +148,6 @@ runs:
           fi
         done
 
-        echo "::set-output name=updated_rules::$updated_rules"
-        echo "::set-output name=updated_count::$updated_count"
+        echo "updated_rules=$updated_rules" >> $GITHUB_OUTPUT
+        echo "updated_count=$updated_count" >> $GITHUB_OUTPUT
         echo "Updated $updated_count scheduled tasks successfully"

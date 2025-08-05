@@ -48,7 +48,7 @@ runs:
           --query 'taskDefinition.revision' \
           --output text)
         echo "Latest ECS Task Definition revision: $latest_td_revision"
-        echo "::set-output name=latest-td-revision::$latest_td_revision"
+        echo "latest-td-revision=$latest_td_revision" >> $GITHUB_OUTPUT
     - name: Generate new ECS Task Definition JSON
       id: generate-new-ecs-td-json
       shell: bash
@@ -86,7 +86,7 @@ runs:
           --query 'taskDefinition.revision' \
           --output text)
         echo "New ECS Task Definition revision: $new_td_revision"
-        echo "::set-output name=new-td-revision::$new_td_revision"
+        echo "new-td-revision=$new_td_revision" >> $GITHUB_OUTPUT
     - name: Update ECS Service with new Task Definition revision
       id: update-ecs-service
       shell: bash
