@@ -26,6 +26,11 @@ inputs:
    description: The ECR url of the docker image
    required: true
 
+outputs:
+  new_td_revision:
+    description: The revision number of the newly created task definition
+    value: ${{ steps.create-new-ecs-td-revision.outputs.new_td_revision }}
+
 runs:
   using: composite
   steps:

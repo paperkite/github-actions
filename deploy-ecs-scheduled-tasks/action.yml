@@ -1,0 +1,137 @@
+name: Deploy ECS Scheduled Tasks
+description: >-
+  Updates CloudWatch Event targets for scheduled ECS tasks to use a new task definition.
+  This action should be run after deploy-ecs-service to update scheduled tasks with the
+  new task definition created by the service deployment.
+
+inputs:
+  region:
+    description: The AWS region where the CloudWatch Events and ECS resources are located
+    required: true
+  access-key:
+    description: The AWS access key ID to use
+    required: true
+  secret-access-key:
+    description: The AWS access key secret
+    required: true
+  ecs-cluster-name:
+    description: The ECS cluster name where scheduled tasks run
+    required: true
+  ecs-td-family:
+    description: The ECS Task Definition family to use for scheduled tasks
+    required: true
+  ecs-td-revision:
+    description: The specific Task Definition revision to use (from deploy-ecs-service output)
+    required: true
+  service-name:
+    description: The service name to identify which scheduled tasks to update (e.g., 'api')
+    required: true
+  environment:
+    description: The environment name (dev, qa, prod) to identify which scheduled tasks to update
+    required: true
+
+outputs:
+  updated-rules:
+    description: List of CloudWatch Event rules that were updated
+    value: ${{ steps.update-targets.outputs.updated_rules }}
+  updated-count:
+    description: Number of scheduled tasks that were updated
+    value: ${{ steps.update-targets.outputs.updated_count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Find CloudWatch Event rules for scheduled tasks
+      id: find-rules
+      shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
+      run: |
+        # Find all CloudWatch Event rules that match the pattern for this service and environment
+        rule_prefix="${{ inputs.service-name }}-${{ inputs.environment }}-"
+        echo "Looking for CloudWatch Event rules with prefix: $rule_prefix"
+
+        # Get all rules that match our service and environment
+        rules=$(aws events list-rules \
+          --name-prefix "$rule_prefix" \
+          --query 'Rules[].Name' \
+          --output text)
+
+        if [ -z "$rules" ]; then
+          echo "No scheduled task rules found for prefix: $rule_prefix"
+          echo "::set-output name=rules::"
+          echo "::set-output name=rule_count::0"
+        else
+          echo "Found rules: $rules"
+          # Convert to comma-separated for easier processing
+          rules_csv=$(echo "$rules" | tr ' ' ',')
+          echo "::set-output name=rules::$rules_csv"
+          rule_count=$(echo "$rules" | wc -w)
+          echo "::set-output name=rule_count::$rule_count"
+        fi
+
+    - name: Update CloudWatch Event targets with new task definition
+      id: update-targets
+      shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
+      run: |
+        rules="${{ steps.find-rules.outputs.rules }}"
+        rule_count="${{ steps.find-rules.outputs.rule_count }}"
+
+        if [ "$rule_count" -eq 0 ] || [ -z "$rules" ]; then
+          echo "No rules to update"
+          echo "::set-output name=updated_rules::"
+          echo "::set-output name=updated_count::0"
+          exit 0
+        fi
+
+        task_def_arn="${{ inputs.ecs-td-family }}:${{ inputs.ecs-td-revision }}"
+        echo "Task Definition ARN: $task_def_arn"
+
+        updated_rules=""
+        updated_count=0
+
+        # Convert comma-separated rules back to space-separated for iteration
+        IFS=',' read -ra rule_array <<< "$rules"
+        for rule_name in "${rule_array[@]}"; do
+          echo "Processing rule: $rule_name"
+
+          # Get current targets for this rule
+          targets_json=$(aws events list-targets-by-rule --rule "$rule_name")
+
+          if [ "$(echo "$targets_json" | jq '.Targets | length')" -eq 0 ]; then
+            echo "No targets found for rule $rule_name"
+            continue
+          fi
+
+          # Update only the task definition ARN, preserving all other configuration
+          updated_targets=$(echo "$targets_json" | jq --arg task_def_arn "$task_def_arn" \
+            '.Targets[0].EcsParameters.TaskDefinitionArn = $task_def_arn | [.Targets[0]]')
+
+          echo "  Updating target for rule $rule_name..."
+          echo "$updated_targets" | aws events put-targets \
+            --rule "$rule_name" \
+            --targets file:///dev/stdin
+
+          if [ $? -eq 0 ]; then
+            echo "  ✅ Successfully updated rule $rule_name"
+            if [ -z "$updated_rules" ]; then
+              updated_rules="$rule_name"
+            else
+              updated_rules="$updated_rules,$rule_name"
+            fi
+            updated_count=$((updated_count + 1))
+          else
+            echo "  ❌ Failed to update rule $rule_name"
+            exit 1
+          fi
+        done
+
+        echo "::set-output name=updated_rules::$updated_rules"
+        echo "::set-output name=updated_count::$updated_count"
+        echo "Updated $updated_count scheduled tasks successfully"
