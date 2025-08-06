@@ -1,12 +1,11 @@
-name: Deploy ECS Scheduled Tasks
+name: Deploy ECS Crons
 description: >-
-  Updates CloudWatch Event targets for scheduled ECS tasks to use a new task definition.
-  This action should be run after deploy-ecs-service to update scheduled tasks with the
-  new task definition created by the service deployment.
+  Updates a crons task definition with a new image tag, then updates all 
+  scheduled tasks to use the new task definition revision.
 
 inputs:
   region:
-    description: The AWS region where the CloudWatch Events and ECS resources are located
+    description: The AWS region where the ECS resources are located
     required: true
   access-key:
     description: The AWS access key ID to use
@@ -14,14 +13,14 @@ inputs:
   secret-access-key:
     description: The AWS access key secret
     required: true
+  ecr-image-url:
+    description: The ECR URL of the docker image
+    required: true
   ecs-cluster-name:
     description: The ECS cluster name where scheduled tasks run
     required: true
-  ecs-td-family:
-    description: The ECS Task Definition family to use for scheduled tasks
-    required: true
-  ecs-td-revision:
-    description: The specific Task Definition revision to use (from deploy-ecs-service output)
+  ecs-crons-td-family:
+    description: The ECS crons Task Definition family to update (e.g., 'api-dev-crons')
     required: true
   service-name:
     description: The service name to identify which scheduled tasks to update (e.g., 'api')
@@ -31,6 +30,9 @@ inputs:
     required: true
 
 outputs:
+  new-crons-td-revision:
+    description: The revision number of the newly created crons task definition
+    value: ${{ steps.update-crons-td.outputs.new-crons-td-revision }}
   updated-rules:
     description: List of CloudWatch Event rules that were updated
     value: ${{ steps.update-targets.outputs.updated_rules }}
@@ -41,6 +43,63 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Update crons task definition with new image
+      id: update-crons-td
+      shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
+      run: |
+        echo "Updating crons task definition: ${{ inputs.ecs-crons-td-family }}"
+        
+        # Get the latest task definition
+        latest_td_json=$(aws ecs describe-task-definition \
+          --task-definition ${{ inputs.ecs-crons-td-family }} \
+          --query 'taskDefinition' \
+          --output json)
+        
+        if [ $? -ne 0 ]; then
+          echo "Error: Failed to describe crons task definition"
+          exit 1
+        fi
+        
+        # Update the image tag in the task definition JSON
+        new_td_json=$(echo $latest_td_json | jq \
+          --arg image_url ${{ inputs.ecr-image-url }} \
+          '.containerDefinitions[0].image = $image_url')
+        
+        # Filter the task definition JSON down to the CLI input values
+        new_td_cli_json=$(echo $new_td_json | jq '{ family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory }')
+        
+        # Validate the JSON is not empty
+        if [ "$(echo $new_td_cli_json | jq -r '.family')" = "null" ]; then
+          echo "Error: Generated crons task definition JSON is invalid"
+          exit 1
+        fi
+        
+        # Save task definition JSON
+        echo $new_td_cli_json > crons-task-definition.json
+        
+        # Register new crons task definition
+        echo "Registering new crons task definition..."
+        register_output=$(aws ecs register-task-definition \
+          --cli-input-json file://crons-task-definition.json)
+        
+        echo "Register crons task definition output:"
+        echo "$register_output"
+        
+        new_crons_td_revision=$(echo "$register_output" | jq -r '.taskDefinition.revision')
+        echo "Extracted crons revision: '$new_crons_td_revision'"
+        
+        if [ "$new_crons_td_revision" = "null" ] || [ -z "$new_crons_td_revision" ]; then
+          echo "Error: Failed to extract crons revision number from register-task-definition output"
+          exit 1
+        fi
+        
+        echo "New crons task definition revision: $new_crons_td_revision"
+        echo "new-crons-td-revision=$new_crons_td_revision" >> $GITHUB_OUTPUT
+
     - name: Find CloudWatch Event rules for scheduled tasks
       id: find-rules
       shell: bash
@@ -65,13 +124,14 @@ runs:
           echo "rule_count=0" >> $GITHUB_OUTPUT
         else
           echo "Found rules: $rules"
+          # Convert multiple spaces to single spaces, then to comma-separated for easier processing
           rules_csv=$(echo "$rules" | perl -pe 's/\s+/,/g')
           echo "rules=$rules_csv" >> $GITHUB_OUTPUT
           rule_count=$(echo "$rules" | wc -w)
           echo "rule_count=$rule_count" >> $GITHUB_OUTPUT
         fi
 
-    - name: Update CloudWatch Event targets with new task definition
+    - name: Update CloudWatch Event targets with new crons task definition
       id: update-targets
       shell: bash
       env:
@@ -89,25 +149,10 @@ runs:
           exit 0
         fi
 
-        # Debug inputs
-        echo "ECS TD Family: '${{ inputs.ecs-td-family }}'"
-        echo "ECS TD Revision: '${{ inputs.ecs-td-revision }}'"
-        
-        # Validate required inputs
-        if [ -z "${{ inputs.ecs-td-family }}" ]; then
-          echo "Error: ecs-td-family input is required"
-          exit 1
-        fi
-        
-        if [ -z "${{ inputs.ecs-td-revision }}" ]; then
-          echo "Error: ecs-td-revision input is required"
-          exit 1
-        fi
-        
         # Get AWS account ID for constructing full task definition ARN
         account_id=$(aws sts get-caller-identity --query Account --output text)
-        task_def_arn="arn:aws:ecs:${{ inputs.region }}:${account_id}:task-definition/${{ inputs.ecs-td-family }}:${{ inputs.ecs-td-revision }}"
-        echo "Task Definition ARN: $task_def_arn"
+        crons_task_def_arn="arn:aws:ecs:${{ inputs.region }}:${account_id}:task-definition/${{ inputs.ecs-crons-td-family }}:${{ steps.update-crons-td.outputs.new-crons-td-revision }}"
+        echo "Crons Task Definition ARN: $crons_task_def_arn"
 
         updated_rules=""
         updated_count=0
@@ -126,7 +171,7 @@ runs:
           fi
 
           # Update only the task definition ARN, preserving all other configuration
-          updated_targets=$(echo "$targets_json" | jq --arg task_def_arn "$task_def_arn" \
+          updated_targets=$(echo "$targets_json" | jq --arg task_def_arn "$crons_task_def_arn" \
             '.Targets[0].EcsParameters.TaskDefinitionArn = $task_def_arn | [.Targets[0]]')
 
           echo "  Updating target for rule $rule_name..."
