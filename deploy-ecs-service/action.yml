@@ -26,6 +26,11 @@ inputs:
    description: The ECR url of the docker image
    required: true
 
+outputs:
+  new-td-revision:
+    description: The revision number of the newly created task definition
+    value: ${{ steps.create-new-ecs-td-revision.outputs.new-td-revision }}
+
 runs:
   using: composite
   steps:
@@ -43,7 +48,7 @@ runs:
           --query 'taskDefinition.revision' \
           --output text)
         echo "Latest ECS Task Definition revision: $latest_td_revision"
-        echo "::set-output name=latest_td_revision::$latest_td_revision"
+        echo "latest-td-revision=$latest_td_revision" >> $GITHUB_OUTPUT
     - name: Generate new ECS Task Definition JSON
       id: generate-new-ecs-td-json
       shell: bash
@@ -53,16 +58,34 @@ runs:
         AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
       run: |
         # Get the latest task definition JSON
+        echo "Getting task definition: ${{ inputs.ecs-td-family }}:${{ steps.get-latest-ecs-td-revision.outputs.latest-td-revision }}"
         latest_td_json=$(aws ecs describe-task-definition \
-          --task-definition ${{ inputs.ecs-td-family }}:${{ steps.get-latest-ecs-td-revision.outputs.latest_td_revision }} \
+          --task-definition ${{ inputs.ecs-td-family }}:${{ steps.get-latest-ecs-td-revision.outputs.latest-td-revision }} \
           --query 'taskDefinition' \
           --output json)
+        
+        if [ $? -ne 0 ]; then
+          echo "Error: Failed to describe task definition"
+          exit 1
+        fi
+        
         # Update the image tag in the task definition JSON
         new_td_json=$(echo $latest_td_json | jq \
           --arg image_url ${{ inputs.ecr-image-url }} \
           '.containerDefinitions[0].image = $image_url')
+        
         # Filter the task definition JSON down to the CLI input values
         new_td_cli_json=$(echo $new_td_json | jq '{ family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory }')
+        
+        # Validate the JSON is not empty
+        if [ "$(echo $new_td_cli_json | jq -r '.family')" = "null" ]; then
+          echo "Error: Generated task definition JSON is invalid"
+          echo "Latest TD JSON: $latest_td_json"
+          echo "New TD JSON: $new_td_json"
+          echo "CLI JSON: $new_td_cli_json"
+          exit 1
+        fi
+        
         # Echo & save TF CLI JSON
         echo "New ECS Task Definition JSON:"
         echo $new_td_cli_json
@@ -76,12 +99,22 @@ runs:
         AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
       run: |
         # Create a new revision of the task definition family
-        new_td_revision=$(aws ecs register-task-definition \
-          --cli-input-json file://task-definition.json \
-          --query 'taskDefinition.revision' \
-          --output text)
+        echo "Registering new task definition..."
+        register_output=$(aws ecs register-task-definition \
+          --cli-input-json file://task-definition.json)
+        echo "Register task definition output:"
+        echo "$register_output"
+        
+        new_td_revision=$(echo "$register_output" | jq -r '.taskDefinition.revision')
+        echo "Extracted revision: '$new_td_revision'"
+        
+        if [ "$new_td_revision" = "null" ] || [ -z "$new_td_revision" ]; then
+          echo "Error: Failed to extract revision number from register-task-definition output"
+          exit 1
+        fi
+        
         echo "New ECS Task Definition revision: $new_td_revision"
-        echo "::set-output name=new_td_revision::$new_td_revision"
+        echo "new-td-revision=$new_td_revision" >> $GITHUB_OUTPUT
     - name: Update ECS Service with new Task Definition revision
       id: update-ecs-service
       shell: bash
@@ -94,4 +127,4 @@ runs:
         aws ecs update-service \
           --cluster ${{ inputs.ecs-cluster-name }} \
           --service ${{ inputs.ecs-service-name }} \
-          --task-definition ${{ inputs.ecs-td-family }}:${{ steps.create-new-ecs-td-revision.outputs.new_td_revision }}
+          --task-definition ${{ inputs.ecs-td-family }}:${{ steps.create-new-ecs-td-revision.outputs.new-td-revision }}

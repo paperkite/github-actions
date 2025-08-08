@@ -1,0 +1,198 @@
+name: Deploy ECS Crons
+description: >-
+  Updates a crons task definition with a new image tag, then updates all 
+  scheduled tasks to use the new task definition revision.
+
+inputs:
+  region:
+    description: The AWS region where the ECS resources are located
+    required: true
+  access-key:
+    description: The AWS access key ID to use
+    required: true
+  secret-access-key:
+    description: The AWS access key secret
+    required: true
+  ecr-image-url:
+    description: The ECR URL of the docker image
+    required: true
+  ecs-cluster-name:
+    description: The ECS cluster name where scheduled tasks run
+    required: true
+  ecs-crons-td-family:
+    description: The ECS crons Task Definition family to update (e.g., 'api-dev-crons')
+    required: true
+  service-name:
+    description: The service name to identify which scheduled tasks to update (e.g., 'api')
+    required: true
+  environment:
+    description: The environment name (dev, qa, prod) to identify which scheduled tasks to update
+    required: true
+
+outputs:
+  new-crons-td-revision:
+    description: The revision number of the newly created crons task definition
+    value: ${{ steps.update-crons-td.outputs.new-crons-td-revision }}
+  updated-rules:
+    description: List of CloudWatch Event rules that were updated
+    value: ${{ steps.update-targets.outputs.updated_rules }}
+  updated-count:
+    description: Number of scheduled tasks that were updated
+    value: ${{ steps.update-targets.outputs.updated_count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Update crons task definition with new image
+      id: update-crons-td
+      shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
+      run: |
+        echo "Updating crons task definition: ${{ inputs.ecs-crons-td-family }}"
+        
+        # Get the latest task definition
+        latest_td_json=$(aws ecs describe-task-definition \
+          --task-definition ${{ inputs.ecs-crons-td-family }} \
+          --query 'taskDefinition' \
+          --output json)
+        
+        if [ $? -ne 0 ]; then
+          echo "Error: Failed to describe crons task definition"
+          exit 1
+        fi
+        
+        # Update the image tag in the task definition JSON
+        new_td_json=$(echo $latest_td_json | jq \
+          --arg image_url ${{ inputs.ecr-image-url }} \
+          '.containerDefinitions[0].image = $image_url')
+        
+        # Filter the task definition JSON down to the CLI input values
+        new_td_cli_json=$(echo $new_td_json | jq '{ family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory }')
+        
+        # Validate the JSON is not empty
+        if [ "$(echo $new_td_cli_json | jq -r '.family')" = "null" ]; then
+          echo "Error: Generated crons task definition JSON is invalid"
+          exit 1
+        fi
+        
+        # Save task definition JSON
+        echo $new_td_cli_json > crons-task-definition.json
+        
+        # Register new crons task definition
+        echo "Registering new crons task definition..."
+        register_output=$(aws ecs register-task-definition \
+          --cli-input-json file://crons-task-definition.json)
+        
+        echo "Register crons task definition output:"
+        echo "$register_output"
+        
+        new_crons_td_revision=$(echo "$register_output" | jq -r '.taskDefinition.revision')
+        echo "Extracted crons revision: '$new_crons_td_revision'"
+        
+        if [ "$new_crons_td_revision" = "null" ] || [ -z "$new_crons_td_revision" ]; then
+          echo "Error: Failed to extract crons revision number from register-task-definition output"
+          exit 1
+        fi
+        
+        echo "New crons task definition revision: $new_crons_td_revision"
+        echo "new-crons-td-revision=$new_crons_td_revision" >> $GITHUB_OUTPUT
+
+    - name: Find CloudWatch Event rules for scheduled tasks
+      id: find-rules
+      shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
+      run: |
+        # Find all CloudWatch Event rules that match the pattern for this service and environment
+        rule_prefix="${{ inputs.service-name }}-${{ inputs.environment }}-"
+        echo "Looking for CloudWatch Event rules with prefix: $rule_prefix"
+
+        # Get all rules that match our service and environment
+        rules=$(aws events list-rules \
+          --name-prefix "$rule_prefix" \
+          --query 'Rules[].Name' \
+          --output text)
+
+        if [ -z "$rules" ]; then
+          echo "No scheduled task rules found for prefix: $rule_prefix"
+          echo "rules=" >> $GITHUB_OUTPUT
+          echo "rule_count=0" >> $GITHUB_OUTPUT
+        else
+          echo "Found rules: $rules"
+          # Convert multiple spaces to single spaces, then to comma-separated for easier processing
+          rules_csv=$(echo "$rules" | perl -pe 's/\s+/,/g')
+          echo "rules=$rules_csv" >> $GITHUB_OUTPUT
+          rule_count=$(echo "$rules" | wc -w)
+          echo "rule_count=$rule_count" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Update CloudWatch Event targets with new crons task definition
+      id: update-targets
+      shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
+      run: |
+        rules="${{ steps.find-rules.outputs.rules }}"
+        rule_count="${{ steps.find-rules.outputs.rule_count }}"
+
+        if [ "$rule_count" -eq 0 ] || [ -z "$rules" ]; then
+          echo "No rules to update"
+          echo "updated_rules=" >> $GITHUB_OUTPUT
+          echo "updated_count=0" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # Get AWS account ID for constructing full task definition ARN
+        account_id=$(aws sts get-caller-identity --query Account --output text)
+        crons_task_def_arn="arn:aws:ecs:${{ inputs.region }}:${account_id}:task-definition/${{ inputs.ecs-crons-td-family }}:${{ steps.update-crons-td.outputs.new-crons-td-revision }}"
+        echo "Crons Task Definition ARN: $crons_task_def_arn"
+
+        updated_rules=""
+        updated_count=0
+
+        # Convert comma-separated rules back to space-separated for iteration
+        IFS=',' read -ra rule_array <<< "$rules"
+        for rule_name in "${rule_array[@]}"; do
+          echo "Processing rule: $rule_name"
+
+          # Get current targets for this rule
+          targets_json=$(aws events list-targets-by-rule --rule "$rule_name")
+
+          if [ "$(echo "$targets_json" | jq '.Targets | length')" -eq 0 ]; then
+            echo "No targets found for rule $rule_name"
+            continue
+          fi
+
+          # Update only the task definition ARN, preserving all other configuration
+          updated_targets=$(echo "$targets_json" | jq --arg task_def_arn "$crons_task_def_arn" \
+            '.Targets[0].EcsParameters.TaskDefinitionArn = $task_def_arn | [.Targets[0]]')
+
+          echo "  Updating target for rule $rule_name..."
+          echo "$updated_targets" | aws events put-targets \
+            --rule "$rule_name" \
+            --targets file:///dev/stdin
+
+          if [ $? -eq 0 ]; then
+            echo "  ✅ Successfully updated rule $rule_name"
+            if [ -z "$updated_rules" ]; then
+              updated_rules="$rule_name"
+            else
+              updated_rules="$updated_rules,$rule_name"
+            fi
+            updated_count=$((updated_count + 1))
+          else
+            echo "  ❌ Failed to update rule $rule_name"
+            exit 1
+          fi
+        done
+
+        echo "updated_rules=$updated_rules" >> $GITHUB_OUTPUT
+        echo "updated_count=$updated_count" >> $GITHUB_OUTPUT
+        echo "Updated $updated_count scheduled tasks successfully"

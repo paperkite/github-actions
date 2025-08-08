@@ -95,6 +95,79 @@ jobs:
           source: ./docs/api/schema.yaml
 ```
 
+### `deploy-ecs-service`
+
+Creates a new ECS Task Definition from the latest revision of a given family with a new image tag, then updates the service to use the new task definition.
+
+Outputs:
+- `new_td_revision`: The revision number of the newly created task definition
+
+```yaml
+- name: Deploy ECS Service
+  id: deploy-service
+  uses: paperkite/github-actions/deploy-ecs-service@main
+  with:
+    region: 'ap-southeast-2'
+    access-key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    ecs-cluster-name: 'dev-cluster'
+    ecs-service-name: 'api-dev'
+    ecs-td-family: 'api-dev'
+    ecr-image-url: '123456789012.dkr.ecr.ap-southeast-2.amazonaws.com/bpme-api:latest'
+```
+
+### `deploy-ecs-scheduled-tasks`
+
+Updates CloudWatch Event targets for scheduled ECS tasks to use a new task definition. This action should be run after `deploy-ecs-service` to update scheduled tasks with the new task definition created by the service deployment.
+
+The action automatically finds CloudWatch Event rules matching the pattern `{service-name}-{environment}-{task-name}` and updates their targets to use the new task definition while preserving all other configuration.
+
+```yaml
+- name: Deploy ECS Scheduled Tasks
+  uses: paperkite/github-actions/deploy-ecs-scheduled-tasks@main
+  with:
+    region: 'ap-southeast-2'
+    access-key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    ecs-cluster-name: 'dev-cluster'
+    ecs-td-family: 'api-dev'
+    ecs-td-revision: ${{ steps.deploy-service.outputs.new_td_revision }}
+    service-name: 'api'
+    environment: 'dev'
+```
+
+Example combined usage:
+
+```yaml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy ECS Service
+        id: deploy-service
+        uses: paperkite/github-actions/deploy-ecs-service@main
+        with:
+          region: 'ap-southeast-2'
+          access-key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          ecs-cluster-name: 'dev-cluster'
+          ecs-service-name: 'api-dev'
+          ecs-td-family: 'api-dev'
+          ecr-image-url: '${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-southeast-2.amazonaws.com/bpme-api:${{ github.sha }}'
+
+      - name: Deploy ECS Scheduled Tasks
+        uses: paperkite/github-actions/deploy-ecs-scheduled-tasks@main
+        with:
+          region: 'ap-southeast-2'
+          access-key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          ecs-cluster-name: 'dev-cluster'
+          ecs-td-family: 'api-dev'
+          ecs-td-revision: ${{ steps.deploy-service.outputs.new_td_revision }}
+          service-name: 'api'
+          environment: 'dev'
+```
+
 ## Workflows
 
 None so far
