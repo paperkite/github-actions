@@ -1,0 +1,88 @@
+name: Deploy ECS Task
+description: >-
+  Creates a new ECS Task Definition revision from the latest revision of a given
+  family with a new image tag. Use this for on-demand Fargate tasks triggered via
+  RunTask (e.g. Lambda/webhook-dispatched agents) — no service or scheduled rule
+  to update, just register the new revision so future runs pick it up.
+
+inputs:
+  region:
+    description: The AWS region where the ECS resources are located
+    required: true
+  access-key:
+    description: The AWS access key ID to use
+    required: true
+  secret-access-key:
+    description: The AWS access key secret
+    required: true
+  ecs-td-family:
+    description: The ECS Task Definition family to create a new revision of
+    required: true
+  ecr-image-url:
+    description: The full ECR image URL including tag (e.g. 123456789.dkr.ecr.ap-southeast-6.amazonaws.com/agents:v1.2.3)
+    required: true
+
+outputs:
+  new-td-revision:
+    description: The revision number of the newly registered task definition
+    value: ${{ steps.register-td.outputs.new-td-revision }}
+
+runs:
+  using: composite
+  steps:
+    - name: Generate new Task Definition JSON
+      id: generate-td-json
+      shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
+      run: |
+        echo "Fetching latest task definition for family: ${{ inputs.ecs-td-family }}"
+        latest_td_json=$(aws ecs describe-task-definition \
+          --task-definition ${{ inputs.ecs-td-family }} \
+          --query 'taskDefinition' \
+          --output json)
+
+        if [ $? -ne 0 ]; then
+          echo "Error: Failed to describe task definition"
+          exit 1
+        fi
+
+        new_td_cli_json=$(echo $latest_td_json | jq \
+          --arg image_url "${{ inputs.ecr-image-url }}" \
+          '.containerDefinitions[0].image = $image_url
+          | { family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory, runtimePlatform }')
+
+        if [ "$(echo $new_td_cli_json | jq -r '.family')" = "null" ]; then
+          echo "Error: Generated task definition JSON is invalid"
+          echo "Source: $latest_td_json"
+          exit 1
+        fi
+
+        echo "New task definition:"
+        echo $new_td_cli_json | jq .
+        echo $new_td_cli_json > task-definition.json
+
+    - name: Register new Task Definition revision
+      id: register-td
+      shell: bash
+      env:
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-access-key }}
+      run: |
+        echo "Registering new task definition revision..."
+        register_output=$(aws ecs register-task-definition \
+          --cli-input-json file://task-definition.json)
+
+        new_td_revision=$(echo "$register_output" | jq -r '.taskDefinition.revision')
+
+        if [ "$new_td_revision" = "null" ] || [ -z "$new_td_revision" ]; then
+          echo "Error: Failed to extract revision from register-task-definition output"
+          echo "$register_output"
+          exit 1
+        fi
+
+        echo "Registered ${{ inputs.ecs-td-family }}:$new_td_revision"
+        echo "new-td-revision=$new_td_revision" >> $GITHUB_OUTPUT
