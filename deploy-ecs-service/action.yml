@@ -75,7 +75,7 @@ runs:
           '.containerDefinitions[0].image = $image_url')
         
         # Filter the task definition JSON down to the CLI input values
-        new_td_cli_json=$(echo $new_td_json | jq '{ family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory }')
+        new_td_cli_json=$(echo $new_td_json | jq '{ family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory, runtimePlatform }')
         
         # Validate the JSON is not empty
         if [ "$(echo $new_td_cli_json | jq -r '.family')" = "null" ]; then
