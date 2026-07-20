@@ -49,10 +49,13 @@ runs:
           exit 1
         fi
 
+        # runtimePlatform is only valid as an object; register-task-definition rejects an explicit
+        # null (e.g. for EC2 launch type tasks), so drop the key entirely when it's null.
         new_td_cli_json=$(echo $latest_td_json | jq \
           --arg image_url "${{ inputs.ecr-image-url }}" \
           '.containerDefinitions[0].image = $image_url
-          | { family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory, runtimePlatform }')
+          | { family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory, runtimePlatform }
+          | if .runtimePlatform == null then del(.runtimePlatform) else . end')
 
         if [ "$(echo $new_td_cli_json | jq -r '.family')" = "null" ]; then
           echo "Error: Generated task definition JSON is invalid"

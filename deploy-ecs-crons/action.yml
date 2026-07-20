@@ -69,8 +69,10 @@ runs:
           --arg image_url ${{ inputs.ecr-image-url }} \
           '.containerDefinitions[0].image = $image_url')
         
-        # Filter the task definition JSON down to the CLI input values
-        new_td_cli_json=$(echo $new_td_json | jq '{ family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory, runtimePlatform }')
+        # Filter the task definition JSON down to the CLI input values.
+        # runtimePlatform is only valid as an object; register-task-definition rejects an explicit
+        # null (e.g. for EC2 launch type tasks), so drop the key entirely when it's null.
+        new_td_cli_json=$(echo $new_td_json | jq '{ family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory, runtimePlatform } | if .runtimePlatform == null then del(.runtimePlatform) else . end')
         
         # Validate the JSON is not empty
         if [ "$(echo $new_td_cli_json | jq -r '.family')" = "null" ]; then
