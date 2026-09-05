@@ -1,0 +1,110 @@
+name: Bitrise pipeline
+
+on:
+  workflow_call:
+    inputs:
+      pipeline:
+        description: The Bitrise pipeline to start
+        required: true
+        type: string
+      tag:
+        description: Deploy tag, when triggered by one
+        required: false
+        type: string
+        default: ""
+      branch:
+        description: Branch to build, when not triggered by a tag
+        required: false
+        type: string
+        default: ""
+      commit:
+        description: Commit to build
+        required: false
+        type: string
+        default: ""
+      environment:
+        description: GitHub environment to run under, if any
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  pipeline:
+    name: Bitrise ${{ inputs.pipeline }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Start the Bitrise pipeline
+        id: start
+        env:
+          BITRISE_APP_SLUG: ${{ vars.BITRISE_APP_SLUG }}
+          BITRISE_API_TOKEN: ${{ secrets.BITRISE_API_TOKEN }}
+          PIPELINE: ${{ inputs.pipeline }}
+          TAG: ${{ inputs.tag }}
+          BRANCH: ${{ inputs.branch }}
+          COMMIT: ${{ inputs.commit || github.sha }}
+          MESSAGE: ${{ github.event.head_commit.message || github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+
+          params=$(jq -n \
+            --arg pipeline "$PIPELINE" --arg tag "$TAG" \
+            --arg branch "$BRANCH" --arg commit "$COMMIT" \
+            --arg message "$MESSAGE" \
+            '{hook_info: {type: "bitrise"},
+              build_params: ({pipeline_id: $pipeline, commit_hash: $commit,
+                              skip_git_status_report: true}
+                + (if $tag != "" then {tag: $tag} else {} end)
+                + (if $branch != "" then {branch: $branch} else {} end)
+                + (if $message != "" then {commit_message: $message} else {} end)),
+              triggered_by: "GitHub Actions"}')
+
+          response=$(curl -fsS -X POST \
+            "https://api.bitrise.io/v0.1/apps/${BITRISE_APP_SLUG}/builds" \
+            -H "Authorization: ${BITRISE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d "$params")
+
+          slug=$(jq -r '.build_slug // empty' <<<"$response")
+          if [ -z "$slug" ]; then
+            echo "::error::Bitrise did not start a build. Response: ${response}"
+            exit 1
+          fi
+          url=$(jq -r '.build_url // empty' <<<"$response")
+          echo "slug=${slug}" >> "$GITHUB_OUTPUT"
+          echo "url=${url}" >> "$GITHUB_OUTPUT"
+          echo "Started ${url}"
+
+      - name: Wait for the Bitrise pipeline
+        env:
+          BITRISE_APP_SLUG: ${{ vars.BITRISE_APP_SLUG }}
+          BITRISE_API_TOKEN: ${{ secrets.BITRISE_API_TOKEN }}
+          PIPELINE_ID: ${{ steps.start.outputs.slug }}
+          PIPELINE_URL: ${{ steps.start.outputs.url }}
+        timeout-minutes: 30
+        run: |
+          set -euo pipefail
+
+          echo "Waiting on ${PIPELINE_URL}"
+
+          while true; do
+            pipeline=$(curl -fsS \
+              "https://api.bitrise.io/v0.1/apps/${BITRISE_APP_SLUG}/pipelines/${PIPELINE_ID}" \
+              -H "Authorization: ${BITRISE_API_TOKEN}")
+            status=$(jq -r '.status' <<<"$pipeline")
+
+            if [ "$(jq -r '.finished_at // empty' <<<"$pipeline")" = "" ]; then
+              echo "Bitrise pipeline ${status}; checking again in 15s."
+              sleep 15
+              continue
+            fi
+
+            case "$status" in
+              succeeded)
+                echo "Bitrise pipeline succeeded."
+                exit 0 ;;
+              *)
+                echo "::error::Bitrise pipeline ${status}: ${PIPELINE_URL}"
+                exit 1 ;;
+            esac
+          done
