@@ -170,4 +170,69 @@ jobs:
 
 ## Workflows
 
-None so far
+### `bitrise-pipeline`
+
+Starts a Bitrise pipeline and waits for it to finish, failing the job if the
+pipeline does. Use it wherever a repo's mobile build or distribution runs on
+Bitrise rather than on a runner.
+
+The calling repo supplies the app and credentials, so nothing here is
+project-specific:
+
+| Where | Name | Purpose |
+|-------|------|---------|
+| Variable | `BITRISE_APP_SLUG` | The Bitrise app to build |
+| Secret | `BITRISE_API_TOKEN` | A Bitrise personal access token |
+
+Both are read from the calling job, so pass `secrets: inherit`. Set them per
+GitHub Environment when they differ between environments, and pass that
+environment's name as the `environment` input — the job runs under it, which is
+what scopes the variable and secret.
+
+#### Inputs
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| `pipeline` | yes | The Bitrise pipeline to start |
+| `tag` | no | Deploy tag, when triggered by one |
+| `branch` | no | Branch to build, when not triggered by a tag |
+| `commit` | no | Commit to build. Defaults to `github.sha` |
+| `environment` | no | GitHub environment to run under, if any |
+
+Give it a `tag` **or** a `branch` — a tag for a deploy, a branch for a build off
+a pull request. The commit message is taken from the triggering event and shown
+on the Bitrise build.
+
+The pipeline is polled every 15 seconds and the job gives up after 30 minutes.
+
+#### Example usage
+
+Distributing on a deploy tag, under a GitHub environment:
+
+```yaml
+jobs:
+  deploy-mobile:
+    name: Distribute mobile app
+    needs:
+      - configuration
+    uses: paperkite/github-actions/.github/workflows/bitrise-pipeline.yaml@main
+    with:
+      pipeline: ${{ needs.configuration.outputs.mobile_pipeline }}
+      tag: ${{ github.ref_name }}
+      environment: ${{ needs.configuration.outputs.environment }}
+    secrets: inherit
+```
+
+Building a pull request:
+
+```yaml
+jobs:
+  build:
+    name: Mobile build
+    uses: paperkite/github-actions/.github/workflows/bitrise-pipeline.yaml@main
+    with:
+      pipeline: build
+      branch: ${{ github.head_ref }}
+      commit: ${{ github.event.pull_request.head.sha }}
+    secrets: inherit
+```
