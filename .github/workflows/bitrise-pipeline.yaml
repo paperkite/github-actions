@@ -106,10 +106,7 @@ jobs:
               *)
                 echo "::error::Bitrise pipeline ${status}: ${PIPELINE_URL}"
 
-                # Bitrise's summary box names the step that failed but not why,
-                # and always-run steps (artifact deploy) log after it — so cut
-                # each failed leg's log at the first failed-step marker and show
-                # what led up to it, rather than the tail.
+                # Log errors from a failed bitrise build
                 jq -r '.workflows[]? | select(.status == "failed") | "\(.name) \(.external_id)"' <<<"$pipeline" |
                   while read -r name slug; do
                     log=$(curl -fsS \
@@ -118,8 +115,6 @@ jobs:
                       | jq -r '.log_chunks[]?.chunk' \
                       | sed 's/\x1b\[[0-9;]*m//g') || continue
 
-                    # The cut reads from a here-string, not a pipe: `q` closing a
-                    # pipe mid-read would trip pipefail and lose the excerpt.
                     excerpt=$(sed -n '/^| x |/q;p' <<<"$log" | tail -40)
 
                     printf '::group::%s failure log\n%s\n::endgroup::\n' "$name" "$excerpt"
