@@ -105,6 +105,28 @@ jobs:
                 exit 0 ;;
               *)
                 echo "::error::Bitrise pipeline ${status}: ${PIPELINE_URL}"
+
+                # Bitrise's summary box names the step that failed but not why,
+                # and always-run steps (artifact deploy) log after it — so cut
+                # each failed leg's log at the first failed-step marker and show
+                # what led up to it, rather than the tail.
+                jq -r '.workflows[]? | select(.status == "failed") | "\(.name) \(.external_id)"' <<<"$pipeline" |
+                  while read -r name slug; do
+                    log=$(curl -fsS \
+                      "https://api.bitrise.io/v0.1/apps/${BITRISE_APP_SLUG}/builds/${slug}/log" \
+                      -H "Authorization: ${BITRISE_API_TOKEN}" \
+                      | jq -r '.log_chunks[]?.chunk' \
+                      | sed 's/\x1b\[[0-9;]*m//g') || continue
+
+                    # The cut reads from a here-string, not a pipe: `q` closing a
+                    # pipe mid-read would trip pipefail and lose the excerpt.
+                    excerpt=$(sed -n '/^| x |/q;p' <<<"$log" | tail -40)
+
+                    printf '::group::%s failure log\n%s\n::endgroup::\n' "$name" "$excerpt"
+                    printf '### %s failed\n\n```\n%s\n```\n' "$name" "$excerpt" \
+                      >> "$GITHUB_STEP_SUMMARY"
+                  done
+
                 exit 1 ;;
             esac
           done
