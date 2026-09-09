@@ -27,6 +27,18 @@ on:
         required: false
         type: string
         default: ""
+      should_run:
+        description: >
+          Whether to actually run the pipeline. False reports success without
+          building, for a caller whose check is required but who only wants the
+          build on some refs — pass `${{ github.base_ref == 'internal' }}` or
+          similar. Skipping the calling job instead does not work: a skipped
+          caller reports under its own name, never `<caller> / <inner job>`, so
+          a required check on that context is never satisfied and the pull
+          request waits on a status that never arrives.
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   pipeline:
@@ -36,6 +48,7 @@ jobs:
     steps:
       - name: Start the Bitrise pipeline
         id: start
+        if: inputs.should_run
         env:
           BITRISE_APP_SLUG: ${{ vars.BITRISE_APP_SLUG }}
           BITRISE_API_TOKEN: ${{ secrets.BITRISE_API_TOKEN }}
@@ -76,6 +89,7 @@ jobs:
           echo "Started ${url}"
 
       - name: Wait for the Bitrise pipeline
+        if: inputs.should_run
         env:
           BITRISE_APP_SLUG: ${{ vars.BITRISE_APP_SLUG }}
           BITRISE_API_TOKEN: ${{ secrets.BITRISE_API_TOKEN }}
