@@ -29,13 +29,8 @@ on:
         default: ""
       should_run:
         description: >
-          Whether to actually run the pipeline. False reports success without
-          building, for a caller whose check is required but who only wants the
-          build on some refs — pass `${{ github.base_ref == 'internal' }}` or
-          similar. Skipping the calling job instead does not work: a skipped
-          caller reports under its own name, never `<caller> / <inner job>`, so
-          a required check on that context is never satisfied and the pull
-          request waits on a status that never arrives.
+          Whether to run the build or not (on staging + production an app is built in another step;
+          but this check may still be required to pass for merge)
         required: false
         type: boolean
         default: true
