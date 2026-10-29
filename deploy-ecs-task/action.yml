@@ -41,7 +41,8 @@ runs:
         echo "Fetching latest task definition for family: ${{ inputs.ecs-td-family }}"
         latest_td_json=$(aws ecs describe-task-definition \
           --task-definition ${{ inputs.ecs-td-family }} \
-          --query 'taskDefinition' \
+          --include TAGS \
+          --query 'merge(taskDefinition, {tags: tags})' \
           --output json)
 
         if [ $? -ne 0 ]; then
@@ -49,13 +50,12 @@ runs:
           exit 1
         fi
 
-        # runtimePlatform is only valid as an object; register-task-definition rejects an explicit
-        # null (e.g. for EC2 launch type tasks), so drop the key entirely when it's null.
+        # Drop only the read-only fields describe returns, so everything else (ephemeralStorage, tags, ...) carries over.
         new_td_cli_json=$(echo $latest_td_json | jq \
           --arg image_url "${{ inputs.ecr-image-url }}" \
           '.containerDefinitions[0].image = $image_url
-          | { family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory, runtimePlatform }
-          | if .runtimePlatform == null then del(.runtimePlatform) else . end')
+          | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy, .deregisteredAt)
+          | if (.tags // []) == [] then del(.tags) else . end')
 
         if [ "$(echo $new_td_cli_json | jq -r '.family')" = "null" ]; then
           echo "Error: Generated task definition JSON is invalid"
