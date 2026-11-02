@@ -4,6 +4,46 @@ A repository for sharing GHA actions & workflows between projects at PK.
 
 ## Actions
 
+### `setup-pk-cli`
+
+Installs [pk](https://github.com/paperkite/paperkite-operations-platform), PaperKite's CLI, from a `pk-v*` release, then works out the environment the current ref deploys to (`internal-rc` → internal, `vX.Y.Z-staging-rc.N` → staging, `vX.Y.Z` → production). It exports `PK_PROJECT` (when given) and `PK_ENVIRONMENT`, so later `pk` steps don't repeat them, and sets an `environment` output (empty when the ref isn't a deploy tag).
+
+pk's `deploy` and `ci` commands replace the other actions here:
+
+| Action | pk command |
+|---|---|
+| `generate-environment-info` | `pk deploy env` |
+| `generate-sha` | `pk ci image-sha` |
+| `deploy-ecs-service` | `pk deploy service` |
+| `deploy-ecs-crons` | `pk deploy crons` |
+| `deploy-ecs-task` | `pk deploy task` |
+| `deploy-eb-docker-environment` | `pk deploy eb` |
+| `move-tag-to-head-if-merged` | `pk deploy retag` |
+| `check-oas-bundled` | `pk ci oas-check` |
+| `bitrise-pipeline` workflow | `pk ci bitrise` |
+
+AWS credentials come from the job's environment (`aws-actions/configure-aws-credentials` with OIDC), never as inputs, and pk checks they're for the account the manifest names. ECS names default to the convention: cluster `<env>`, service `<project slug>`, family `<service>-<env>`. Production writes need `-e production` passed explicitly.
+
+```yaml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: paperkite/github-actions/setup-pk-cli@main
+        id: pk
+        with:
+          token: ${{ secrets.PK_READ_TOKEN }}
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE }}
+          aws-region: ap-southeast-2
+      - run: pk deploy service -e "$PK_ENVIRONMENT" --image "$ECR_REPOSITORY:$GITHUB_REF_NAME"
+```
+
 ### `generate-sha`
 
 Allows us to consistently create 1-to-1 image names for our Docker images via providing a consistent SHA. It's simply an action that provides the 8 char SHA of the current commit to be used in qa/dev tags like dev-81db02f5.

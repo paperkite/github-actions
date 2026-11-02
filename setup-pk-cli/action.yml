@@ -1,0 +1,93 @@
+name: Set up the pk CLI
+description: >-
+  Installs pk — PaperKite's CLI, whose `pk deploy …` and `pk ci …` commands
+  replace this repo's shared steps — from a paperkite-operations-platform
+  release, and resolves the environment the current ref deploys to.
+
+inputs:
+  version:
+    description: The pk release to install, e.g. 1.2.0 or pk-v1.2.0; defaults to the newest
+    required: false
+    default: latest
+  project:
+    description: >-
+      The project slug (or owner/repo) pk runs against; defaults to the
+      checked-out repo's, found from its git remote
+    required: false
+    default: ""
+  token:
+    description: >-
+      A token that can read paperkite/paperkite-operations-platform releases,
+      e.g. the PK_READ_TOKEN org secret
+    required: true
+
+outputs:
+  environment:
+    description: >-
+      The environment this ref deploys to (internal, staging or production), or
+      empty when it isn't a deploy tag
+    value: ${{ steps.environment.outputs.environment }}
+  version:
+    description: The pk version installed
+    value: ${{ steps.install.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install pk
+      id: install
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        VERSION: ${{ inputs.version }}
+        REPO: paperkite/paperkite-operations-platform
+      run: |
+        set -euo pipefail
+
+        if [ "$VERSION" = "latest" ]; then
+          tag=$(gh release list --repo "$REPO" --limit 100 --json tagName \
+            --jq '[.[] | select(.tagName | startswith("pk-v"))][0].tagName')
+          if [ -z "$tag" ]; then
+            echo "::error::No pk-v* release found in $REPO"
+            exit 1
+          fi
+        else
+          tag="pk-v${VERSION#pk-v}"
+        fi
+
+        dir="$RUNNER_TEMP/pk"
+        mkdir -p "$dir"
+        gh release download "$tag" --repo "$REPO" --pattern pk.tgz --dir "$dir" --clobber
+        tar -xzf "$dir/pk.tgz" -C "$dir"
+
+        printf '#!/bin/sh\nexec node "%s/pk.mjs" "$@"\n' "$dir" > "$dir/pk"
+        chmod +x "$dir/pk"
+        echo "$dir" >> "$GITHUB_PATH"
+
+        version=$("$dir/pk" --version)
+        echo "Installed pk $version ($tag)"
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    - name: Resolve the environment
+      id: environment
+      shell: bash
+      env:
+        PROJECT: ${{ inputs.project }}
+      run: |
+        set -euo pipefail
+
+        if [ -n "$PROJECT" ]; then
+          echo "PK_PROJECT=$PROJECT" >> "$GITHUB_ENV"
+          export PK_PROJECT="$PROJECT"
+        fi
+
+        # A branch push or PR has no environment; a deploy tag pk can't place fails here
+        if [[ "$GITHUB_REF_TYPE" = tag && "$GITHUB_REF_NAME" =~ ^(internal-rc|v[0-9]+\.[0-9]+\.[0-9]+(-staging-rc\.[0-9]+)?)$ ]]; then
+          environment=$(pk deploy env "$GITHUB_REF_NAME" | jq -r '.environment')
+          echo "PK_ENVIRONMENT=$environment" >> "$GITHUB_ENV"
+          echo "environment=$environment" >> "$GITHUB_OUTPUT"
+          echo "$GITHUB_REF_NAME deploys to $environment"
+        else
+          echo "environment=" >> "$GITHUB_OUTPUT"
+          echo "$GITHUB_REF_NAME isn't a deploy tag; no environment"
+        fi
