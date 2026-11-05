@@ -17,9 +17,7 @@ runs:
 
     - name: Install swagger-cli
       shell: bash
-      run: |
-        sudo apt-get install yarn
-        yarn global add @apidevtools/swagger-cli
+      run: npm install -g @apidevtools/swagger-cli@4.0.4
 
     - name: Check if schema has been bundled
       shell: bash
